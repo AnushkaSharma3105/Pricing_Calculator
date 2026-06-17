@@ -93,18 +93,22 @@ You should see something like `Python 3.11.0`
 
 ### Step 2 — Clone the Project
 In terminal-
+
 git clone https://github.com/AnushkaSharma3105/Pricing_Calculator
 
 ### Step 3 — Create a Virtual Environment
 cd Pricing_Calculator
+
 python -m venv .venv
 
 Then activate it:
+
 .venv\Scripts\activate
 
 
 ### Step 4 — Install Dependencies
 pip install -r requirements.txt
+
 
 Wait for all packages to install. This may take 1-2 minutes.
 
@@ -114,6 +118,7 @@ streamlit run app.py
 ```
 
 Your browser will automatically open at:
+
 http://localhost:8501
 
 If the browser doesn't open automatically, copy and paste that link into Chrome manually.
