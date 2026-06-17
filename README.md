@@ -94,21 +94,28 @@ You should see something like `Python 3.11.0`
 ### Step 2 — Clone the Project
 In terminal-
 
+```powershell
 git clone https://github.com/AnushkaSharma3105/Pricing_Calculator
+```
 
 ### Step 3 — Create a Virtual Environment
+
+```powershell
 cd Pricing_Calculator
+```
 
+```powershell
 python -m venv .venv
-
+```
 Then activate it:
-
+```powershell
 .venv\Scripts\activate
-
+```
 
 ### Step 4 — Install Dependencies
+```powershell
 pip install -r requirements.txt
-
+```
 
 Wait for all packages to install. This may take 1-2 minutes.
 
