@@ -212,15 +212,9 @@ with st.sidebar:
     st.markdown("- Per month unless stated")
     st.markdown("---")
     st.markdown("### 📋 Guidelines")
-    st.markdown("**Components Discount:**")
-    st.markdown("- Sales/BD: 10%")
-    st.markdown("- BD Head: 15%")
-    st.markdown("- Commercials: 28%")
-    st.markdown("**License Discount:**")
-    st.markdown("- Sales/BD: 5%")
-    st.markdown("- BD Head: 7%")
-    st.markdown("- Commercials: 12%")
-
+    st.markdown("- India pricing only")
+    st.markdown("- Term discount applicable only for fixed-term contracts")
+    st.markdown("- Components include VMs, Storage, Backup, and Connectivity")
 
 # MAIN HEADER
 
