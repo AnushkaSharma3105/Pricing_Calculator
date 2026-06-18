@@ -13,16 +13,30 @@ from utils import (
     format_inr, generate_quotation_id,
     build_summary_dataframe, export_to_csv, export_to_excel
 )
+from auth import init_db
+from login_page import show_login
+from register_page import show_register
+from profile_page import show_profile
+from cart_page import show_cart
 
 
 # PAGE CONFIG
 
 st.set_page_config(
-    page_title="Cloud Price Calculator",
+    page_title="CloudQuote",
     page_icon="☁️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+init_db()
+
+# SESSION STATE INIT
+
+for key, default in [("logged_in", False), ("user", None), ("page", "login"),
+                     ("result", None), ("quotation_id", None), ("last_config", {})]:
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 
 # CUSTOM CSS
@@ -30,38 +44,77 @@ st.set_page_config(
 st.markdown("""
 <style>
             
+    /* === BUTTON STYLES + FOCUS FIX === */
 
-    /* === BUTTON TEXT COLOR FIX (More Reliable) === */
-    button[kind="secondary"],
-    button[data-testid="stDownloadButton"] {
-        color: white !important;
+    /* Remove focus ring from everything */
+    *:focus,
+    *:focus-visible,
+    *:focus-within {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Secondary button (Reset) */
+    div.stButton > button[kind="secondary"] {
+        color: #1B3A6B !important;
         font-weight: 600 !important;
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border: 1.5px solid #2563EB !important;
+        outline: none !important;
+        box-shadow: none !important;
     }
 
-    /* Target the inner text element - this usually fixes it */
-    button[kind="secondary"] p,
-    button[data-testid="stDownloadButton"] p,
-    button[kind="secondary"] div,
-    button[data-testid="stDownloadButton"] div {
+    div.stButton > button[kind="secondary"] p,
+    div.stButton > button[kind="secondary"] div {
+        color: #1B3A6B !important;
+    }
+
+    div.stButton > button[kind="secondary"]:hover {
+        background-color: #2563EB !important;
         color: white !important;
+        border-color: #2563EB !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    div.stButton > button[kind="secondary"]:focus,
+    div.stButton > button[kind="secondary"]:focus-visible,
+    div.stButton > button[kind="secondary"]:active {
+        outline: none !important;
+        box-shadow: none !important;
+        border: 1.5px solid #2563EB !important;
+    }
+
+    /* Download buttons */
+    div[data-testid="stDownloadButton"] > button {
+        color: #1B3A6B !important;
         font-weight: 600 !important;
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border: 1.5px solid #2563EB !important;
+        outline: none !important;
+        box-shadow: none !important;
     }
 
-    /* Also target the button container */
-    div.stButton button[kind="secondary"],
-    button[data-testid="stDownloadButton"] {
-        color: white !important;
-        font-weight: 600 !important;
+    div[data-testid="stDownloadButton"] > button p,
+    div[data-testid="stDownloadButton"] > button div {
+        color: #1B3A6B !important;
     }
 
-    /* Hover state */
-    button[kind="secondary"]:hover p,
-    button[data-testid="stDownloadButton"]:hover p,
-    button[kind="secondary"]:hover,
-    button[data-testid="stDownloadButton"]:hover {
+    div[data-testid="stDownloadButton"] > button:hover {
+        background-color: #2563EB !important;
         color: white !important;
+        border-color: #2563EB !important;
+        outline: none !important;
+        box-shadow: none !important;
     }
-            
+
+    div[data-testid="stDownloadButton"] > button:focus,
+    div[data-testid="stDownloadButton"] > button:focus-visible,
+    div[data-testid="stDownloadButton"] > button:active {
+        outline: none !important;
+        box-shadow: none !important;
+        border: 1.5px solid #2563EB !important;
+    }
 
 
     /* Main background - light blue gradient */
@@ -141,59 +194,266 @@ st.markdown("""
         font-weight: 600; margin-bottom: 12px;
     }
 
+    /* Navbar */
+    .nav-bar {
+        background: rgba(255, 255, 255, 0.85);
+        border-radius: 12px;
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+
     /* Labels and general text */
     label, p, div { color: #1E3A5F; }
 
     /* Hide streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-            
-    
-            
-    /* White bold text inside all input fields and dropdowns */
+
+    /* Selected value text in dropdowns and number inputs */
     div[data-baseweb="select"] span,
-    div[data-baseweb="select"] div,
+    div[data-baseweb="select"] [data-testid="stSelectboxValue"],
     .stSelectbox div[data-baseweb="select"] input,
     input[type="number"],
     .stNumberInput input {
-        color: white !important;
-        font-weight: 700 !important;
+        color: #1B3A6B !important;
+        font-weight: 600 !important;
     }
 
-    /* Dropdown options list - white text */
+    /* Dropdown container background */
+    div[data-baseweb="select"] > div {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        border-radius: 8px !important;
+    }
+
+    /* Selected value in closed dropdown */
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] [data-testid="stSelectboxValue"],
+    .stSelectbox div[data-baseweb="select"] input {
+        color: #1B3A6B !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+            
+
+
+    /* Dropdown options list */
     div[data-baseweb="popover"] ul li,
     div[data-baseweb="popover"] ul li div,
     div[data-baseweb="popover"] ul li span,
     div[data-baseweb="menu"] ul li,
     [role="option"],
     [role="listbox"] li {
-        color: white !important;
+        color: #1B3A6B !important;
         font-weight: 400 !important;
+        background-color: white !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        padding: 10px 16px !important;
     }
 
+    /* Let the dropdown panel auto-widen instead of wrapping text */
+    
+    ul[role="listbox"] {
+        width: max-content !important;
+        max-width: 360px !important;
+    }
+            
+
+
     /* Highlighted/hovered option */
-    div[data-baseweb="popover"] ul li:hover {
+    div[data-baseweb="popover"] ul li:hover,
+    [role="option"]:hover {
         background-color: #2563EB !important;
         color: white !important;
     }
-    
-          
+
+    /* Selected/active option in list */
+    [aria-selected="true"],
+    [role="option"][aria-selected="true"] {
+        background-color: #EFF6FF !important;
+        color: #1B3A6B !important;
+        font-weight: 600 !important;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] [data-testid="stSelectboxValue"],
+        input[type="number"],
+        .stNumberInput input {
+            color: #1B3A6B !important;
+        }
+        div[data-baseweb="select"] > div {
+            background-color: rgba(255, 255, 255, 0.95) !important;
+        }
+    }
+
+    /* Number inputs */
+    div[data-baseweb="input"] {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        border-radius: 8px !important;
+        border: 1px solid #BFDBFE !important;
+    }
+
+    div[data-baseweb="input"] input {
+        background-color: transparent !important;
+        color: #1B3A6B !important;
+        font-weight: 600 !important;
+    }
+
+    .stNumberInput > div > div,
+    .stNumberInput > div > div > div,
+    [data-testid="stNumberInput"] > div,
+    [data-testid="stNumberInput"] div[data-baseweb="input"] {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .stNumberInput button {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        color: #1B3A6B !important;
+        border: none !important;
+    }
+
+    .stNumberInput button:hover {
+        background-color: #2563EB !important;
+        color: white !important;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        div[data-baseweb="input"],
+        .stNumberInput > div > div,
+        .stNumberInput > div > div > div,
+        [data-testid="stNumberInput"] div[data-baseweb="input"] {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+        }
+        div[data-baseweb="input"] input {
+            background-color: transparent !important;
+            color: #1B3A6B !important;
+        }
+        .stNumberInput button {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            color: #1B3A6B !important;
+        }
+    }
+
+    /* Dropdown arrow */
+    div[data-baseweb="select"] svg,
+    div[data-baseweb="select"] [data-testid="stSelectboxArrow"],
+    .stSelectbox svg {
+        color: #1B3A6B !important;
+        fill: #1B3A6B !important;
+        opacity: 1 !important;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        div[data-baseweb="select"] svg,
+        div[data-baseweb="select"] [data-testid="stSelectboxArrow"],
+        .stSelectbox svg {
+            color: #1B3A6B !important;
+            fill: #1B3A6B !important;
+            opacity: 1 !important;
+        }
+    }
+
+    /* Tooltip button */
+    [data-testid="stTooltipHoverTarget"] {
+        background-color: #1B3A6B !important;
+        border-radius: 50% !important;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        min-height: 18px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: none !important;
+        outline: none !important;
+        border: none !important;
+    }
+
+    [data-testid="stTooltipHoverTarget"] svg,
+    [data-testid="stTooltipHoverTarget"] svg *,
+    [data-testid="stTooltipHoverTarget"] svg path,
+    [data-testid="stTooltipHoverTarget"] svg circle {
+        stroke: white !important;
+        fill: none !important;
+        color: white !important;
+        opacity: 1 !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
+# ROUTING — show login/register if not logged in
 
-# SESSION STATE INIT
+if not st.session_state.logged_in:
+    if st.session_state.page == "register":
+        show_register()
+    else:
+        show_login()
+    st.stop()
 
-if "result" not in st.session_state:
-    st.session_state.result = None
-if "quotation_id" not in st.session_state:
-    st.session_state.quotation_id = None
-if "last_config" not in st.session_state:
-    st.session_state.last_config = {}
 
+# NAVBAR (only shown when logged in)
+
+user = st.session_state.user
+nav_cols = st.columns([3, 1, 1, 1, 1])
+with nav_cols[0]:
+    st.markdown(
+        f"<div style='padding-top:8px; font-size:1.1rem; font-weight:800; color:#1B3A6B;'>"
+        f"☁️ CloudQuote &nbsp;|&nbsp; "
+        f"<span style='font-weight:400; font-size:0.95rem;'>Hi, {user['full_name'].split()[0]}!</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+with nav_cols[1]:
+    if st.button("📊 Dashboard", use_container_width=True,
+                 type="primary" if st.session_state.page == "dashboard" else "secondary"):
+        st.session_state.page = "dashboard"
+        st.rerun()
+with nav_cols[2]:
+    if st.button("👤 Profile", use_container_width=True,
+                 type="primary" if st.session_state.page == "profile" else "secondary"):
+        st.session_state.page = "profile"
+        st.rerun()
+with nav_cols[3]:
+    if st.button("🛒 My Cart", use_container_width=True,
+                 type="primary" if st.session_state.page == "cart" else "secondary"):
+        st.session_state.page = "cart"
+        st.rerun()
+with nav_cols[4]:
+    if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+        st.session_state.logged_in = False
+        st.session_state.user = None
+        st.session_state.page = "login"
+        st.session_state.result = None
+        st.rerun()
+
+st.markdown("---")
+
+
+# PAGE ROUTING
+
+if st.session_state.page == "profile":
+    show_profile()
+    st.stop()
+
+if st.session_state.page == "cart":
+    show_cart()
+    st.stop()
+
+
+# DASHBOARD (default page)
 
 # SIDEBAR
-
 with st.sidebar:
     st.markdown("## ☁️ Cloud Pricing")
     st.markdown("---")
@@ -216,11 +476,13 @@ with st.sidebar:
     st.markdown("- Term discount applicable only for fixed-term contracts")
     st.markdown("- Components include VMs, Storage, Backup, and Connectivity")
 
+
 # MAIN HEADER
 
 st.markdown("""
 <div class="card">
-    <h2 style="margin:0; color:#1B3A6B;">☁️ Cloud Infrastructure Price Calculator</h2>
+    <h2 style="margin:0; color:#1B3A6B;"> CloudQuote </h2>
+    <h4 style="margin:0; color: #4D516D;"> ☁️ Cloud Infrastructure Price Calculator </h4>
     <p style="margin:4px 0 0 0; color:#64748B;">
         Tata TeleServices · India Region · All prices in INR per month
     </p>
@@ -257,7 +519,6 @@ if product == "Vayu Cloud":
     col1, col2 = st.columns(2)
 
     with col1:
-        
         st.markdown("**🖥️ VM Configuration**")
 
         flavour = st.selectbox(
@@ -286,10 +547,8 @@ if product == "Vayu Cloud":
             value=1, step=1,
             key="vayu_qty"
         )
-        
 
     with col2:
-        
         st.markdown("**💾 Storage & Add-ons**")
 
         storage_type = st.selectbox(
@@ -330,7 +589,6 @@ if product == "Vayu Cloud":
             value=0, step=1,
             key="vayu_ips"
         )
-        
 
     config = {
         "Operating System": os_type,
@@ -350,7 +608,6 @@ elif product == "Hana Grid":
     col1, col2 = st.columns(2)
 
     with col1:
-        
         st.markdown("**🖥️ VM Configuration**")
 
         flavour = st.selectbox(
@@ -377,10 +634,8 @@ elif product == "Hana Grid":
             value=1, step=1,
             key="hana_qty"
         )
-        
 
     with col2:
-        
         st.markdown("**💾 Storage & Add-ons**")
 
         storage_type = st.selectbox(
@@ -409,8 +664,6 @@ elif product == "Hana Grid":
             key="hana_backup_gb"
         ) if backup_type != "None" else 0
 
-        
-
     config = {
         "Operating System": os_type,
         "Pricing Tier": pricing_tier,
@@ -427,7 +680,6 @@ elif product == "OLVM":
     col1, col2 = st.columns(2)
 
     with col1:
-        
         st.markdown("**🖥️ VM Configuration**")
         st.info("ℹ️ OLVM supports Linux only (High Performance, 1:2 contention ratio)")
 
@@ -449,10 +701,8 @@ elif product == "OLVM":
             value=1, step=1,
             key="olvm_qty"
         )
-        
 
     with col2:
-        
         st.markdown("**💾 Storage & Add-ons**")
 
         storage_type = st.selectbox(
@@ -480,8 +730,6 @@ elif product == "OLVM":
             value=0, step=50,
             key="olvm_backup_gb"
         ) if backup_type != "None" else 0
-
-        
 
     config = {
         "Pricing Tier": pricing_tier,
@@ -539,7 +787,6 @@ if reset_clicked:
 # CALCULATE
 
 if calculate_clicked:
-    # Validation
     errors = []
     if storage_type != "None" and storage_gb == 0:
         errors.append("Please enter Storage Size (GB) greater than 0.")
@@ -633,9 +880,8 @@ if st.session_state.result:
         st.dataframe(pd.DataFrame(config_rows),
                      use_container_width=True, hide_index=True)
 
-   
     # EXPORT BUTTONS
-   
+
     st.markdown("---")
     st.markdown('<div class="section-title">⬇️ Download Quotation</div>',
                 unsafe_allow_html=True)
