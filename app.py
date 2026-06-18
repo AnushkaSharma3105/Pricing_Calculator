@@ -18,7 +18,7 @@ from auth import init_db
 from login_page import show_login
 from register_page import show_register
 from profile_page import show_profile
-from cart_page import show_cart
+from history_page import show_cart
 
 
 # PAGE CONFIG
@@ -434,7 +434,7 @@ with nav_cols[2]:
         st.session_state.page = "profile"
         st.rerun()
 with nav_cols[3]:
-    if st.button("🛒 My Cart", use_container_width=True,
+    if st.button("History", use_container_width=True,
                  type="primary" if st.session_state.page == "cart" else "secondary"):
         st.session_state.page = "cart"
         st.rerun()
