@@ -11,7 +11,8 @@ from pricing_engine import (
 )
 from utils import (
     format_inr, generate_quotation_id,
-    build_summary_dataframe, export_to_csv, export_to_excel
+    build_summary_dataframe, export_to_csv, export_to_excel,
+    build_quote_export_dataframe, export_quote_to_csv, export_quote_to_excel
 )
 from auth import init_db
 from login_page import show_login
@@ -401,6 +402,14 @@ if not st.session_state.logged_in:
         show_login()
     st.stop()
 
+if "result" not in st.session_state:
+    st.session_state.result = None
+if "quotation_id" not in st.session_state:
+    st.session_state.quotation_id = generate_quotation_id()
+if "last_config" not in st.session_state:
+    st.session_state.last_config = {}
+if "quote_items" not in st.session_state:
+    st.session_state.quote_items = []
 
 # NAVBAR (only shown when logged in)
 
@@ -779,8 +788,9 @@ with btn_col3:
 
 if reset_clicked:
     st.session_state.result = None
-    st.session_state.quotation_id = None
+    st.session_state.quotation_id = generate_quotation_id()
     st.session_state.last_config = {}
+    st.session_state.quote_items = []
     st.rerun()
 
 
@@ -821,14 +831,31 @@ if calculate_clicked:
 
         if result:
             st.session_state.result = result
-            st.session_state.quotation_id = generate_quotation_id()
+            st.session_state.quotation_id = st.session_state.quotation_id or generate_quotation_id()
+            item = {
+                "Product": product,
+                "Flavour": flavour,
+                "Operating System": config.get("Operating System", "N/A"),
+                "Pricing Tier": config.get("Pricing Tier", "N/A"),
+                "Storage Type": config.get("Storage Type", "None"),
+                "Storage (GB)": config.get("Storage (GB)", 0),
+                "Backup Type": config.get("Backup Type", "None"),
+                "Backup (GB)": config.get("Backup (GB)", 0),
+                "Firewall": config.get("Firewall", "None"),
+                "Public IPs": config.get("Public IPs", 0),
+                "Quantity": result.get("Quantity", 1),
+                "vCPU": specs.get("vCPU", ""),
+                "RAM (GB)": specs.get("RAM (GB)", ""),
+                "Line Total (INR)": result.get("Grand Total", 0.0),
+            }
+            st.session_state.quote_items.append(item)
             st.session_state.last_config = {
                 "product": product,
                 "flavour": flavour,
                 "specs": specs,
                 "config": config,
             }
-            st.markdown('<div class="success-banner">✅ Price calculated successfully!</div>',
+            st.markdown('<div class="success-banner">✅ Price calculated and added to the quote list!</div>',
                         unsafe_allow_html=True)
         else:
             st.markdown('<div class="error-banner">❌ Could not calculate price. Please check your selections.</div>',
@@ -837,26 +864,100 @@ if calculate_clicked:
 
 # RESULTS SECTION
 
-if st.session_state.result:
-    result = st.session_state.result
-    saved = st.session_state.last_config
+if st.session_state.quote_items:
     qid = st.session_state.quotation_id
+    items = st.session_state.quote_items
+    grand_total = sum(item.get("Line Total (INR)", 0) for item in items)
 
     st.markdown("---")
     st.markdown('<div class="section-title">📊 Quotation Results</div>',
                 unsafe_allow_html=True)
 
-    # Grand total price box
+    st.markdown(f"""
+    <div class="price-box">
+        <p>Quotation ID: {qid}</p>
+        <p>{len(items)} flavour configuration(s) added</p>
+        <h1>{format_inr(grand_total)}</h1>
+        <p>Grand Total per Month (INR, excl. taxes)</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("**📦 Added Flavours / Configurations**")
+    quote_df = pd.DataFrame(items)
+    display_cols = [
+        "Product", "Flavour", "Operating System", "Pricing Tier",
+        "Storage Type", "Storage (GB)", "Backup Type", "Backup (GB)",
+        "Firewall", "Public IPs", "Quantity", "vCPU", "RAM (GB)",
+        "Line Total (INR)"
+    ]
+    quote_df = quote_df[display_cols]
+    st.dataframe(quote_df, use_container_width=True, hide_index=True)
+
+    with st.expander("Remove item from quote"):
+        remove_options = [
+            f"{index + 1}. {item['Product']} {item['Flavour']} — {format_inr(item['Line Total (INR)'])}"
+            for index, item in enumerate(items)
+        ]
+        selected_remove = st.selectbox(
+            "Select item to remove",
+            options=remove_options,
+            key="remove_item_select"
+        )
+        if st.button("Remove selected configuration", type="secondary"):
+            remove_index = remove_options.index(selected_remove)
+            st.session_state.quote_items.pop(remove_index)
+            st.experimental_rerun()
+
+    if st.button("Clear quote list", type="secondary"):
+        st.session_state.quote_items = []
+        st.experimental_rerun()
+
+    st.markdown("---")
+    st.markdown('<div class="section-title">⬇️ Download Quotation</div>',
+                unsafe_allow_html=True)
+
+    quote_export_df = build_quote_export_dataframe(items)
+    csv_data = export_quote_to_csv(quote_export_df)
+    excel_data = export_quote_to_excel(quote_export_df, qid, grand_total)
+
+    dl_col1, dl_col2 = st.columns(2)
+
+    with dl_col1:
+        st.download_button(
+            label="📄 Download as CSV",
+            data=csv_data,
+            file_name=f"quotation_{qid}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    with dl_col2:
+        st.download_button(
+            label="📊 Download as Excel",
+            data=excel_data,
+            file_name=f"quotation_{qid}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+elif st.session_state.result:
+    result = st.session_state.result
+    saved = st.session_state.last_config
+    qid = st.session_state.quotation_id
+
+    st.markdown("---")
+    st.markdown('<div class="section-title">📊 Latest Configuration</div>',
+                unsafe_allow_html=True)
+
     st.markdown(f"""
     <div class="price-box">
         <p>Quotation ID: {qid}</p>
         <p>{saved['product']} · {saved['flavour']} · Qty: {result['Quantity']}</p>
         <h1>{format_inr(result['Grand Total'])}</h1>
-        <p>Grand Total per Month (INR, excl. taxes)</p>
+        <p>Latest calculated configuration total</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Breakdown table
     col_left, col_right = st.columns(2)
 
     with col_left:
@@ -879,8 +980,6 @@ if st.session_state.result:
                         for k, v in saved["specs"].items()]
         st.dataframe(pd.DataFrame(config_rows),
                      use_container_width=True, hide_index=True)
-
-    # EXPORT BUTTONS
 
     st.markdown("---")
     st.markdown('<div class="section-title">⬇️ Download Quotation</div>',
