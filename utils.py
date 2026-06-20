@@ -146,8 +146,27 @@ def build_quote_export_dataframe(items):
     return df
 
 
-def export_quote_to_csv(df):
-    return df.to_csv(index=False).encode("utf-8")
+def export_quote_to_csv(df, grand_total=None):
+    """Export full quote dataframe to CSV bytes and optionally append a GRAND TOTAL row."""
+    df_copy = df.copy()
+    if grand_total is not None:
+        # Build a row with GRAND TOTAL in the Product column and the total in the Line Total column
+        total_row = {col: "" for col in df_copy.columns}
+        # Preferentially set a visible label in 'Product' or 'S.No' if present
+        if "Product" in df_copy.columns:
+            total_row["Product"] = "GRAND TOTAL"
+        elif "S.No" in df_copy.columns:
+            total_row["S.No"] = ""
+        # Place the grand total in the Line Total column if present
+        if "Line Total (INR)" in df_copy.columns:
+            total_row["Line Total (INR)"] = grand_total
+        else:
+            # fallback: append to last column
+            total_row[df_copy.columns[-1]] = grand_total
+
+        df_copy = pd.concat([df_copy, pd.DataFrame([total_row])], ignore_index=True)
+
+    return df_copy.to_csv(index=False).encode("utf-8")
 
 
 def export_quote_to_excel(df, quotation_id, grand_total):

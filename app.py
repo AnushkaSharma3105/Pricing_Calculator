@@ -917,7 +917,7 @@ if st.session_state.quote_items:
                 unsafe_allow_html=True)
 
     quote_export_df = build_quote_export_dataframe(items)
-    csv_data = export_quote_to_csv(quote_export_df)
+    csv_data = export_quote_to_csv(quote_export_df, grand_total)
     excel_data = export_quote_to_excel(quote_export_df, qid, grand_total)
 
     dl_col1, dl_col2 = st.columns(2)
