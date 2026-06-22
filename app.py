@@ -1,3 +1,5 @@
+import json
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 from data_loader import (
@@ -15,6 +17,7 @@ from utils import (
     build_quote_export_dataframe, export_quote_to_csv, export_quote_to_excel
 )
 from auth import init_db
+from history_db import init_quote_history_db, save_quotation_history
 from login_page import show_login
 from register_page import show_register
 from profile_page import show_profile
@@ -74,12 +77,80 @@ st.set_page_config(
 )
 
 init_db()
+init_quote_history_db()
+
+
+def build_quotation_history_payload(quotation_id, customer_name, company_name, grand_total,
+                                   quote_items=None, last_config=None, result=None):
+    if quote_items:
+        export_df = build_quote_export_dataframe(quote_items)
+        rows = export_df.to_dict(orient="records")
+        payload = {
+            "type": "full_quote",
+            "columns": list(export_df.columns),
+            "rows": rows,
+            "metadata": {
+                "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+    else:
+        product = last_config.get("product", "") if last_config else ""
+        flavour = last_config.get("flavour", "") if last_config else ""
+        specs = last_config.get("specs", {}) if last_config else {}
+        config = last_config.get("config", {}) if last_config else {}
+        export_df = build_summary_dataframe(product, flavour, specs, config, result or {})
+        rows = export_df.to_dict(orient="records")
+        payload = {
+            "type": "summary",
+            "columns": list(export_df.columns),
+            "rows": rows,
+            "metadata": {
+                "product": product,
+                "flavour": flavour,
+                "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+        }
+
+    return {
+        "quotation_id": quotation_id,
+        "customer_name": customer_name,
+        "company_name": company_name,
+        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "grand_total": grand_total,
+        "quotation_payload": payload,
+    }
+
+
+def save_current_quotation_history(quotation_id, customer_name, company_name,
+                                   quote_items, last_config, result, grand_total):
+    payload = build_quotation_history_payload(
+        quotation_id=quotation_id,
+        customer_name=customer_name,
+        company_name=company_name,
+        grand_total=grand_total,
+        quote_items=quote_items,
+        last_config=last_config,
+        result=result,
+    )
+    save_quotation_history(
+        quotation_id=payload["quotation_id"],
+        customer_name=payload["customer_name"],
+        company_name=payload["company_name"],
+        quotation_payload=payload["quotation_payload"],
+        grand_total=payload["grand_total"],
+    )
+
 
 # ─────────────────────────────────────────────
 # SESSION STATE INIT
 # ─────────────────────────────────────────────
-for key, default in [("logged_in", False), ("user", None), ("page", "login"),
-                     ("result", None), ("quotation_id", None), ("last_config", {})]:
+for key, default in [
+        ("logged_in", False), ("user", None), ("page", "login"),
+        ("result", None), ("quotation_id", None), ("last_config", {}),
+        ("quote_items", []), ("customer_name", ""), ("company_name", ""),
+        ("history_saved_for_qid", None), ("history_view_id", None),
+        ("delete_confirm_id", None)
+]:
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -485,6 +556,25 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+with st.container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    customer_col, company_col = st.columns(2)
+    with customer_col:
+        st.session_state.customer_name = st.text_input(
+            "Customer Name",
+            value=st.session_state.customer_name,
+            placeholder="Enter customer name",
+            key="customer_name_input"
+        )
+    with company_col:
+        st.session_state.company_name = st.text_input(
+            "Company Name",
+            value=st.session_state.company_name,
+            placeholder="Enter company name",
+            key="company_name_input"
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 # STEP 1 — PRODUCT SELECTION
@@ -1232,6 +1322,17 @@ if st.session_state.quote_items:
     st.markdown('<div class="section-title">📊 Quotation Results</div>',
                 unsafe_allow_html=True)
 
+    save_current_quotation_history(
+        quotation_id=qid,
+        customer_name=st.session_state.customer_name,
+        company_name=st.session_state.company_name,
+        quote_items=items,
+        last_config=st.session_state.last_config,
+        result=st.session_state.result,
+        grand_total=grand_total,
+    )
+    st.session_state.history_saved_for_qid = qid
+
     st.markdown(f"""
     <div class="price-box">
         <p>Quotation ID: {qid}</p>
@@ -1314,6 +1415,17 @@ elif st.session_state.result:
     st.markdown("---")
     st.markdown('<div class="section-title">📊 Latest Configuration</div>',
                 unsafe_allow_html=True)
+
+    save_current_quotation_history(
+        quotation_id=qid,
+        customer_name=st.session_state.customer_name,
+        company_name=st.session_state.company_name,
+        quote_items=st.session_state.quote_items,
+        last_config=st.session_state.last_config,
+        result=st.session_state.result,
+        grand_total=result.get('Grand Total', 0),
+    )
+    st.session_state.history_saved_for_qid = qid
 
     st.markdown(f"""
     <div class="price-box">
