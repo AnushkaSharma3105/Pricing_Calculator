@@ -388,6 +388,26 @@ st.markdown("""
         color: white !important;
     }
 
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+    }
+    .history-table th,
+    .history-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #E2E8F0;
+        color: #1B3A6B;
+        text-align: left;
+    }
+    .history-table th {
+        background: rgba(243, 244, 246, 0.95);
+        font-weight: 700;
+    }
+    .history-table tr:last-child td {
+        border-bottom: none;
+    }
+
     @media (prefers-color-scheme: dark) {
         div[data-baseweb="input"],
         .stNumberInput > div > div,

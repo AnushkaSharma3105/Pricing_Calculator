@@ -49,9 +49,11 @@ def show_cart():
         for quote in quotations
     ])
 
-    st.markdown("<div class='card' style='padding: 16px;'>", unsafe_allow_html=True)
-    st.dataframe(history_frame, use_container_width=True, hide_index=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    table_html = history_frame.to_html(index=False, classes="history-table", border=0)
+    st.markdown(
+        f"<div class='card' style='padding: 16px;'>{table_html}</div>",
+        unsafe_allow_html=True
+    )
 
     for quote in quotations:
         history = fetch_quotation_by_db_id(quote['id'])
