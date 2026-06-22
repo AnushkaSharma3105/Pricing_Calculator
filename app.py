@@ -20,9 +20,52 @@ from register_page import show_register
 from profile_page import show_profile
 from history_page import show_cart
 
+# ─────────────────────────────────────────────
+# ADDITIONAL SERVICES PRICING DATA
+# ─────────────────────────────────────────────
 
+INTERNET_BANDWIDTH_PRICE_PER_MBPS = 50  # INR per Mbps per month (from BOQ: 1GB = 50000)
+
+LICENSE_PRICES = {
+    "None": 0,
+    "MS SQL - Standard (per 2 pCore)": 17877.83,
+    "MS SQL - Enterprise (per 2 pCore)": 67311.22,
+    "MS SQL - Web Edition (per 2 pCore)": 1118.06,
+    "MySQL - Standard (per vCore)": 17632.86,
+    "MySQL - Enterprise (per vCore)": 42318.84,
+    "PostgreSQL (per month)": 13888.41,
+    "Commvault Backup (per GB)": 4.35,
+}
+
+MANAGEMENT_PRICES = {
+    "None": 0,
+    "OS Management - Windows (per VM)": 500,
+    "OS Management - Linux (per VM)": 500,
+    "DB Management - MSSQL (per DB)": 6500,
+    "DB Management - MySQL (per DB)": 8000,
+    "DB Management - PostgreSQL (per DB)": 8000,
+}
+
+NETWORK_ELEMENT_OPTIONS = ["None", "Virtual Network", "Firewall - Basic", "Firewall - Standard", "Firewall - Advanced"]
+NETWORK_ELEMENT_PRICES = {
+    "None": 0,
+    "Virtual Network": 0,
+    "Firewall - Basic": 2000,
+    "Firewall - Standard": 5000,
+    "Firewall - Advanced": 10000,
+}
+
+COLOCATION_PRICES = {
+    "None": 0,
+    "Space (per U)": 500,
+    "Power (per KWH)": 100,
+}
+
+PUBLIC_IP_PRICE_CONNECTIVITY = 900  # from master file Connectivity sheet
+
+# ─────────────────────────────────────────────
 # PAGE CONFIG
-
+# ─────────────────────────────────────────────
 st.set_page_config(
     page_title="CloudQuote",
     page_icon="☁️",
@@ -32,30 +75,26 @@ st.set_page_config(
 
 init_db()
 
+# ─────────────────────────────────────────────
 # SESSION STATE INIT
-
+# ─────────────────────────────────────────────
 for key, default in [("logged_in", False), ("user", None), ("page", "login"),
                      ("result", None), ("quotation_id", None), ("last_config", {})]:
     if key not in st.session_state:
         st.session_state[key] = default
 
-
+# ─────────────────────────────────────────────
 # CUSTOM CSS
-
+# ─────────────────────────────────────────────
 st.markdown("""
 <style>
-            
-    /* === BUTTON STYLES + FOCUS FIX === */
 
-    /* Remove focus ring from everything */
-    *:focus,
-    *:focus-visible,
-    *:focus-within {
+    /* === BUTTON STYLES + FOCUS FIX === */
+    *:focus, *:focus-visible, *:focus-within {
         outline: none !important;
         box-shadow: none !important;
     }
 
-    /* Secondary button (Reset) */
     div.stButton > button[kind="secondary"] {
         color: #1B3A6B !important;
         font-weight: 600 !important;
@@ -64,20 +103,13 @@ st.markdown("""
         outline: none !important;
         box-shadow: none !important;
     }
-
     div.stButton > button[kind="secondary"] p,
-    div.stButton > button[kind="secondary"] div {
-        color: #1B3A6B !important;
-    }
-
+    div.stButton > button[kind="secondary"] div { color: #1B3A6B !important; }
     div.stButton > button[kind="secondary"]:hover {
         background-color: #2563EB !important;
         color: white !important;
         border-color: #2563EB !important;
-        outline: none !important;
-        box-shadow: none !important;
     }
-
     div.stButton > button[kind="secondary"]:focus,
     div.stButton > button[kind="secondary"]:focus-visible,
     div.stButton > button[kind="secondary"]:active {
@@ -86,7 +118,6 @@ st.markdown("""
         border: 1.5px solid #2563EB !important;
     }
 
-    /* Download buttons */
     div[data-testid="stDownloadButton"] > button {
         color: #1B3A6B !important;
         font-weight: 600 !important;
@@ -95,20 +126,13 @@ st.markdown("""
         outline: none !important;
         box-shadow: none !important;
     }
-
     div[data-testid="stDownloadButton"] > button p,
-    div[data-testid="stDownloadButton"] > button div {
-        color: #1B3A6B !important;
-    }
-
+    div[data-testid="stDownloadButton"] > button div { color: #1B3A6B !important; }
     div[data-testid="stDownloadButton"] > button:hover {
         background-color: #2563EB !important;
         color: white !important;
         border-color: #2563EB !important;
-        outline: none !important;
-        box-shadow: none !important;
     }
-
     div[data-testid="stDownloadButton"] > button:focus,
     div[data-testid="stDownloadButton"] > button:focus-visible,
     div[data-testid="stDownloadButton"] > button:active {
@@ -117,28 +141,20 @@ st.markdown("""
         border: 1.5px solid #2563EB !important;
     }
 
-
-    /* Main background - light blue gradient */
     .main {
         background: linear-gradient(135deg, #89CFF0 0%, #E0F4FF 100%);
     }
-    .block-container {
-        background: transparent;
-    }
+    .block-container { background: transparent; }
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(135deg, #89CFF0 0%, #E0F4FF 100%);
     }
-    [data-testid="stHeader"] {
-        background: transparent;
-    }
+    [data-testid="stHeader"] { background: transparent; }
 
-    /* Sidebar */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #1B3A6B 0%, #2563EB 100%);
     }
     [data-testid="stSidebar"] * { color: white !important; }
 
-    /* Cards */
     .card {
         background: rgba(255, 255, 255, 0.75);
         border-radius: 12px;
@@ -149,7 +165,6 @@ st.markdown("""
         color: #1B3A6B;
     }
 
-    /* Price summary box */
     .price-box {
         background: linear-gradient(135deg, #1B3A6B 0%, #2563EB 100%);
         border-radius: 12px;
@@ -161,7 +176,6 @@ st.markdown("""
     .price-box h1 { color: white; font-size: 2.8rem; margin: 0; }
     .price-box p  { color: #CBD5E1; margin: 4px 0; font-size: 1rem; }
 
-    /* Section headers */
     .section-title {
         font-size: 1.1rem;
         font-weight: 700;
@@ -171,7 +185,6 @@ st.markdown("""
         margin-bottom: 16px;
     }
 
-    /* Metric cards */
     .metric-card {
         background: rgba(255, 255, 255, 0.8);
         border-radius: 8px;
@@ -183,7 +196,6 @@ st.markdown("""
     .metric-card h3 { color: #1B3A6B; margin: 0; font-size: 1.4rem; }
     .metric-card p  { color: #475569; margin: 4px 0; font-size: 0.85rem; }
 
-    /* Success / error banners */
     .success-banner {
         background: #D1FAE5; border-radius: 8px;
         padding: 12px 16px; color: #065F46;
@@ -195,7 +207,6 @@ st.markdown("""
         font-weight: 600; margin-bottom: 12px;
     }
 
-    /* Navbar */
     .nav-bar {
         background: rgba(255, 255, 255, 0.85);
         border-radius: 12px;
@@ -208,14 +219,11 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     }
 
-    /* Labels and general text */
     label, p, div { color: #1E3A5F; }
 
-    /* Hide streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* Selected value text in dropdowns and number inputs */
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] [data-testid="stSelectboxValue"],
     .stSelectbox div[data-baseweb="select"] input,
@@ -225,13 +233,11 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* Dropdown container background */
     div[data-baseweb="select"] > div {
         background-color: rgba(255, 255, 255, 0.9) !important;
         border-radius: 8px !important;
     }
 
-    /* Selected value in closed dropdown */
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] [data-testid="stSelectboxValue"],
     .stSelectbox div[data-baseweb="select"] input {
@@ -241,10 +247,7 @@ st.markdown("""
         overflow: hidden !important;
         text-overflow: ellipsis !important;
     }
-            
 
-
-    /* Dropdown options list */
     div[data-baseweb="popover"] ul li,
     div[data-baseweb="popover"] ul li div,
     div[data-baseweb="popover"] ul li span,
@@ -260,23 +263,17 @@ st.markdown("""
         padding: 10px 16px !important;
     }
 
-    /* Let the dropdown panel auto-widen instead of wrapping text */
-    
     ul[role="listbox"] {
         width: max-content !important;
         max-width: 360px !important;
     }
-            
 
-
-    /* Highlighted/hovered option */
     div[data-baseweb="popover"] ul li:hover,
     [role="option"]:hover {
         background-color: #2563EB !important;
         color: white !important;
     }
 
-    /* Selected/active option in list */
     [aria-selected="true"],
     [role="option"][aria-selected="true"] {
         background-color: #EFF6FF !important;
@@ -288,40 +285,33 @@ st.markdown("""
         div[data-baseweb="select"] span,
         div[data-baseweb="select"] [data-testid="stSelectboxValue"],
         input[type="number"],
-        .stNumberInput input {
-            color: #1B3A6B !important;
-        }
+        .stNumberInput input { color: #1B3A6B !important; }
         div[data-baseweb="select"] > div {
             background-color: rgba(255, 255, 255, 0.95) !important;
         }
     }
 
-    /* Number inputs */
     div[data-baseweb="input"] {
         background-color: rgba(255, 255, 255, 0.9) !important;
         border-radius: 8px !important;
         border: 1px solid #BFDBFE !important;
     }
-
     div[data-baseweb="input"] input {
         background-color: transparent !important;
         color: #1B3A6B !important;
         font-weight: 600 !important;
     }
-
     .stNumberInput > div > div,
     .stNumberInput > div > div > div,
     [data-testid="stNumberInput"] > div,
     [data-testid="stNumberInput"] div[data-baseweb="input"] {
         background-color: rgba(255, 255, 255, 0.9) !important;
     }
-
     .stNumberInput button {
         background-color: rgba(255, 255, 255, 0.9) !important;
         color: #1B3A6B !important;
         border: none !important;
     }
-
     .stNumberInput button:hover {
         background-color: #2563EB !important;
         color: white !important;
@@ -344,7 +334,6 @@ st.markdown("""
         }
     }
 
-    /* Dropdown arrow */
     div[data-baseweb="select"] svg,
     div[data-baseweb="select"] [data-testid="stSelectboxArrow"],
     .stSelectbox svg {
@@ -363,7 +352,6 @@ st.markdown("""
         }
     }
 
-    /* Tooltip button */
     [data-testid="stTooltipHoverTarget"] {
         background-color: #1B3A6B !important;
         border-radius: 50% !important;
@@ -379,7 +367,6 @@ st.markdown("""
         outline: none !important;
         border: none !important;
     }
-
     [data-testid="stTooltipHoverTarget"] svg,
     [data-testid="stTooltipHoverTarget"] svg *,
     [data-testid="stTooltipHoverTarget"] svg path,
@@ -393,8 +380,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ─────────────────────────────────────────────
 # ROUTING — show login/register if not logged in
-
+# ─────────────────────────────────────────────
 if not st.session_state.logged_in:
     if st.session_state.page == "register":
         show_register()
@@ -411,8 +399,9 @@ if "last_config" not in st.session_state:
 if "quote_items" not in st.session_state:
     st.session_state.quote_items = []
 
-# NAVBAR (only shown when logged in)
-
+# ─────────────────────────────────────────────
+# NAVBAR
+# ─────────────────────────────────────────────
 user = st.session_state.user
 nav_cols = st.columns([3, 1, 1, 1, 1])
 with nav_cols[0]:
@@ -448,9 +437,9 @@ with nav_cols[4]:
 
 st.markdown("---")
 
-
+# ─────────────────────────────────────────────
 # PAGE ROUTING
-
+# ─────────────────────────────────────────────
 if st.session_state.page == "profile":
     show_profile()
     st.stop()
@@ -459,10 +448,9 @@ if st.session_state.page == "cart":
     show_cart()
     st.stop()
 
-
-# DASHBOARD (default page)
-
+# ─────────────────────────────────────────────
 # SIDEBAR
+# ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ☁️ Cloud Pricing")
     st.markdown("---")
@@ -485,9 +473,9 @@ with st.sidebar:
     st.markdown("- Term discount applicable only for fixed-term contracts")
     st.markdown("- Components include VMs, Storage, Backup, and Connectivity")
 
-
+# ─────────────────────────────────────────────
 # MAIN HEADER
-
+# ─────────────────────────────────────────────
 st.markdown("""
 <div class="card">
     <h2 style="margin:0; color:#1B3A6B;"> CloudQuote </h2>
@@ -498,9 +486,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-
-# PRODUCT SELECTION
-
+# ─────────────────────────────────────────────
+# STEP 1 — PRODUCT SELECTION
+# ─────────────────────────────────────────────
 st.markdown('<div class="section-title">Step 1 — Select Product</div>',
             unsafe_allow_html=True)
 
@@ -513,17 +501,17 @@ product = st.selectbox(
 
 st.markdown("---")
 
-
-# DYNAMIC FORM BASED ON PRODUCT
-
-st.markdown('<div class="section-title">Step 2 — Configure</div>',
+# ─────────────────────────────────────────────
+# STEP 2 — VM CONFIGURATION
+# ─────────────────────────────────────────────
+st.markdown('<div class="section-title">Step 2 — Configure VM</div>',
             unsafe_allow_html=True)
 
 config = {}
 
-
+# ══════════════════════════════════════════════
 # VAYU CLOUD FORM
-
+# ══════════════════════════════════════════════
 if product == "Vayu Cloud":
     col1, col2 = st.columns(2)
 
@@ -600,6 +588,8 @@ if product == "Vayu Cloud":
         )
 
     config = {
+        "Element": "ICS",
+        "Hypervisor": "Open Stack",
         "Operating System": os_type,
         "Pricing Tier": pricing_tier,
         "Storage Type": storage_type,
@@ -610,9 +600,9 @@ if product == "Vayu Cloud":
         "Public IPs": public_ips,
     }
 
-
+# ══════════════════════════════════════════════
 # HANA GRID FORM
-
+# ══════════════════════════════════════════════
 elif product == "Hana Grid":
     col1, col2 = st.columns(2)
 
@@ -674,6 +664,8 @@ elif product == "Hana Grid":
         ) if backup_type != "None" else 0
 
     config = {
+        "Element": "ICS",
+        "Hypervisor": "Open Stack",
         "Operating System": os_type,
         "Pricing Tier": pricing_tier,
         "Storage Type": storage_type,
@@ -682,9 +674,9 @@ elif product == "Hana Grid":
         "Backup (GB)": backup_gb,
     }
 
-
+# ══════════════════════════════════════════════
 # OLVM FORM
-
+# ══════════════════════════════════════════════
 elif product == "OLVM":
     col1, col2 = st.columns(2)
 
@@ -741,6 +733,8 @@ elif product == "OLVM":
         ) if backup_type != "None" else 0
 
     config = {
+        "Element": "ICS",
+        "Hypervisor": "OLVM",
         "Pricing Tier": pricing_tier,
         "Storage Type": storage_type,
         "Storage (GB)": storage_gb,
@@ -748,9 +742,9 @@ elif product == "OLVM":
         "Backup (GB)": backup_gb,
     }
 
-
+# ─────────────────────────────────────────────
 # FLAVOUR SPECS PREVIEW
-
+# ─────────────────────────────────────────────
 specs = get_flavour_specs(product, flavour)
 if specs:
     st.markdown('<div class="section-title">Selected Flavour Specs</div>',
@@ -767,9 +761,326 @@ if specs:
 
 st.markdown("---")
 
+# ─────────────────────────────────────────────
+# STEP 3 — ADDITIONAL SERVICES (NEW)
+# ─────────────────────────────────────────────
+st.markdown('<div class="section-title">Step 3 — Additional Services (Optional)</div>',
+            unsafe_allow_html=True)
 
+with st.expander("🌐 Network & Security Services", expanded=False):
+    ns_col1, ns_col2 = st.columns(2)
+
+    with ns_col1:
+        st.markdown("**Internet / Connectivity**")
+        ns_element = st.selectbox(
+            "Element",
+            ["None", "Internet", "DCI Interconnect", "VPN"],
+            key="ns_element",
+            help="Type of network service"
+        )
+        ns_feature = st.selectbox(
+            "Feature",
+            ["None", "Bandwidth", "Port Speed"],
+            key="ns_feature"
+        )
+        ns_subtype = st.selectbox(
+            "Sub Type",
+            ["None", "IPC Internet", "Optical 10G", "Site to Site VPN", "Client to Site VPN"],
+            key="ns_subtype"
+        )
+
+    with ns_col2:
+        st.markdown("**Bandwidth & Quantity**")
+        ns_bandwidth_mbps = st.number_input(
+            "Bandwidth (Mbps)",
+            min_value=0, max_value=100000,
+            value=0, step=100,
+            key="ns_bandwidth",
+            help="Enter bandwidth in Mbps. e.g. 1000 = 1 Gbps"
+        )
+        ns_unit = st.selectbox(
+            "Unit",
+            ["Mbps", "Gbps"],
+            key="ns_unit"
+        )
+        ns_qty = st.number_input(
+            "Quantity",
+            min_value=0, max_value=100,
+            value=0, step=1,
+            key="ns_qty"
+        )
+        ns_remark = st.text_input(
+            "Remark",
+            value="",
+            key="ns_remark",
+            placeholder="e.g. Unlimited Download & Upload"
+        )
+
+    # Calculate internet cost
+    ns_cost = 0
+    if ns_element != "None" and ns_bandwidth_mbps > 0 and ns_qty > 0:
+        ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ns_bandwidth_mbps * ns_qty
+    st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
+
+with st.expander("🔐 Software & Licenses", expanded=False):
+    lic_col1, lic_col2 = st.columns(2)
+
+    with lic_col1:
+        st.markdown("**License Type**")
+        lic_element = st.selectbox(
+            "Element (License)",
+            ["None", "Windows Server", "Linux", "MS SQL", "MySQL",
+             "PostgreSQL", "Commvault Backup License"],
+            key="lic_element"
+        )
+        lic_subtype = st.selectbox(
+            "Sub Type",
+            list(LICENSE_PRICES.keys()),
+            key="lic_subtype"
+        )
+        lic_description = st.text_input(
+            "Description",
+            value="",
+            key="lic_description",
+            placeholder="e.g. OS lic."
+        )
+
+    with lic_col2:
+        st.markdown("**Quantity & Remarks**")
+        lic_unit = st.selectbox(
+            "Unit",
+            ["# of Licenses", "per vCore", "per 2 pCore", "per DB", "per GB"],
+            key="lic_unit"
+        )
+        lic_qty = st.number_input(
+            "Quantity",
+            min_value=0, max_value=100000,
+            value=0, step=1,
+            key="lic_qty"
+        )
+        lic_remark = st.text_input(
+            "Remark",
+            value="",
+            key="lic_remark",
+            placeholder="e.g. BYOL / Included / Customer Scope"
+        )
+
+    lic_cost = 0
+    if lic_subtype != "None" and lic_qty > 0:
+        lic_cost = LICENSE_PRICES.get(lic_subtype, 0) * lic_qty
+    st.info(f"Estimated License Cost: {format_inr(lic_cost)} / month")
+
+with st.expander("💾 Backup Storage", expanded=False):
+    bk_col1, bk_col2 = st.columns(2)
+
+    with bk_col1:
+        st.markdown("**Backup Storage Configuration**")
+        bk_element = st.selectbox(
+            "Element",
+            ["None", "ICS", "BET"],
+            key="bk_element"
+        )
+        bk_make = st.selectbox(
+            "Make",
+            ["None", "BET", "Commvault"],
+            key="bk_make"
+        )
+        bk_model = st.selectbox(
+            "Model",
+            ["None", "Value Based", "Resilient", "Geo-Resilient"],
+            key="bk_model"
+        )
+
+    with bk_col2:
+        st.markdown("**Storage Details**")
+        bk_storage_config = st.selectbox(
+            "Storage Configuration",
+            ["None", "Object-Resilient", "Object-Value", "Block"],
+            key="bk_storage_config"
+        )
+        bk_description = st.text_input(
+            "Description",
+            value="",
+            key="bk_description",
+            placeholder="e.g. Object Storage for backup"
+        )
+        bk_unit = st.selectbox("Unit", ["GB", "TB"], key="bk_unit")
+        bk_qty = st.number_input(
+            "Quantity (GB)",
+            min_value=0, max_value=1000000,
+            value=0, step=100,
+            key="bk_qty"
+        )
+        bk_remark = st.text_input(
+            "Remark",
+            value="",
+            key="bk_remark",
+            placeholder="e.g. Daily Incremental, Weekly Full"
+        )
+
+    bk_cost = 0
+    if bk_model != "None" and bk_qty > 0:
+        bk_price_map = {
+            "Value Based": 1.826923,
+            "Resilient": 3.425481,
+            "Geo-Resilient": 3.882212,
+        }
+        bk_cost = bk_price_map.get(bk_model, 0) * bk_qty
+    st.info(f"Estimated Backup Storage Cost: {format_inr(bk_cost)} / month")
+
+with st.expander("🖧 Network Elements", expanded=False):
+    ne_col1, ne_col2 = st.columns(2)
+
+    with ne_col1:
+        st.markdown("**Network Element**")
+        ne_element = st.selectbox(
+            "Element",
+            ["None", "Virtual Network", "Firewall"],
+            key="ne_element"
+        )
+        ne_description = st.text_input(
+            "Description",
+            value="",
+            key="ne_description",
+            placeholder="e.g. Network isolation, Forti firewall HA"
+        )
+
+    with ne_col2:
+        st.markdown("**Quantity & Remark**")
+        ne_unit = st.selectbox(
+            "Unit",
+            ["None", "Qty", "Port", "Gig"],
+            key="ne_unit"
+        )
+        ne_qty = st.number_input(
+            "Quantity",
+            min_value=0, max_value=100,
+            value=0, step=1,
+            key="ne_qty"
+        )
+        ne_remark = st.text_input(
+            "Remark",
+            value="",
+            key="ne_remark",
+            placeholder="e.g. BYOF / Included / Customer Scope"
+        )
+
+    ne_cost = NETWORK_ELEMENT_PRICES.get(ne_element, 0) if ne_element != "None" else 0
+    st.info(f"Estimated Network Element Cost: {format_inr(ne_cost)} / month")
+
+with st.expander("⚙️ Management Services", expanded=False):
+    mg_col1, mg_col2 = st.columns(2)
+
+    with mg_col1:
+        st.markdown("**Management Type**")
+        mg_element = st.selectbox(
+            "Element",
+            ["None", "OS-Management", "DB Management", "Firewall Management"],
+            key="mg_element"
+        )
+        mg_description = st.text_input(
+            "Description",
+            value="",
+            key="mg_description",
+            placeholder="e.g. Managed services for Windows"
+        )
+
+    with mg_col2:
+        st.markdown("**Quantity & Remark**")
+        mg_unit = st.selectbox(
+            "Unit",
+            ["VM", "DB", "Firewall"],
+            key="mg_unit"
+        )
+        mg_qty = st.number_input(
+            "Quantity",
+            min_value=0, max_value=500,
+            value=0, step=1,
+            key="mg_qty"
+        )
+        mg_remark = st.text_input(
+            "Remark",
+            value="",
+            key="mg_remark",
+            placeholder="e.g. Included / Customer Scope"
+        )
+
+    mg_cost = 0
+    if mg_element != "None" and mg_qty > 0:
+        mg_price_map = {
+            "OS-Management": 500,
+            "DB Management": 6500,
+            "Firewall Management": 2000,
+        }
+        mg_cost = mg_price_map.get(mg_element, 0) * mg_qty
+    st.info(f"Estimated Management Cost: {format_inr(mg_cost)} / month")
+
+with st.expander("📦 Miscellaneous Items", expanded=False):
+    mi_col1, mi_col2 = st.columns(2)
+
+    with mi_col1:
+        st.markdown("**Miscellaneous**")
+        mi_element = st.selectbox(
+            "Element",
+            ["None", "IP", "Space", "Power", "Support",
+             "Tenant", "Wire", "Cross Connect", "Switch Port"],
+            key="mi_element"
+        )
+        mi_description = st.text_input(
+            "Description",
+            value="",
+            key="mi_description",
+            placeholder="e.g. Public IP /27 pool"
+        )
+
+    with mi_col2:
+        st.markdown("**Quantity & Remark**")
+        mi_unit = st.selectbox(
+            "Unit",
+            ["None", "IPs", "U", "KWH", "Sessions", "Gig", "Wire"],
+            key="mi_unit"
+        )
+        mi_qty = st.number_input(
+            "Quantity",
+            min_value=0, max_value=10000,
+            value=0, step=1,
+            key="mi_qty"
+        )
+        mi_price_per_unit = st.number_input(
+            "Price per Unit (INR)",
+            min_value=0.0,
+            value=0.0, step=100.0,
+            key="mi_price_per_unit",
+            help="Enter price per unit manually for miscellaneous items"
+        )
+        mi_remark = st.text_input(
+            "Remark",
+            value="",
+            key="mi_remark",
+            placeholder="e.g. Min 2 IPs Required"
+        )
+
+    mi_cost = mi_price_per_unit * mi_qty if mi_qty > 0 else 0
+    st.info(f"Estimated Miscellaneous Cost: {format_inr(mi_cost)} / month")
+
+# Total additional services cost
+total_additional = ns_cost + lic_cost + bk_cost + ne_cost + mg_cost + mi_cost
+if total_additional > 0:
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.85); border-radius:10px;
+                padding:14px 20px; border-left: 4px solid #2563EB; margin-top:8px;">
+        <b style="color:#1B3A6B;">Total Additional Services Cost:</b>
+        <span style="color:#2563EB; font-weight:700; font-size:1.1rem;">
+            &nbsp;{format_inr(total_additional)} / month
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ─────────────────────────────────────────────
 # BUTTONS ROW
-
+# ─────────────────────────────────────────────
 btn_col1, btn_col2, btn_col3 = st.columns([2, 1, 1])
 
 with btn_col1:
@@ -791,11 +1102,29 @@ if reset_clicked:
     st.session_state.quotation_id = generate_quotation_id()
     st.session_state.last_config = {}
     st.session_state.quote_items = []
+
+    # Reset Step 3 additional services
+    keys_to_reset = [
+        "ns_element", "ns_feature", "ns_subtype", "ns_bandwidth",
+        "ns_unit", "ns_qty", "ns_remark",
+        "lic_element", "lic_subtype", "lic_description",
+        "lic_unit", "lic_qty", "lic_remark",
+        "bk_element", "bk_make", "bk_model", "bk_storage_config",
+        "bk_description", "bk_unit", "bk_qty", "bk_remark",
+        "ne_element", "ne_description", "ne_unit", "ne_qty", "ne_remark",
+        "mg_element", "mg_description", "mg_unit", "mg_qty", "mg_remark",
+        "mi_element", "mi_description", "mi_unit", "mi_qty",
+        "mi_price_per_unit", "mi_remark",
+    ]
+    for key in keys_to_reset:
+        if key in st.session_state:
+            del st.session_state[key]
+
     st.rerun()
 
-
+# ─────────────────────────────────────────────
 # CALCULATE
-
+# ─────────────────────────────────────────────
 if calculate_clicked:
     errors = []
     if storage_type != "None" and storage_gb == 0:
@@ -830,11 +1159,20 @@ if calculate_clicked:
                 )
 
         if result:
+            # Add additional services cost to grand total
+            vm_grand_total = result.get("Grand Total", 0)
+            combined_total = vm_grand_total + total_additional
+            result["Additional Services Cost"] = round(total_additional, 2)
+            result["Grand Total"] = round(combined_total, 2)
+
             st.session_state.result = result
             st.session_state.quotation_id = st.session_state.quotation_id or generate_quotation_id()
+
             item = {
                 "Product": product,
                 "Flavour": flavour,
+                "Element": config.get("Element", "ICS"),
+                "Hypervisor": config.get("Hypervisor", "Open Stack"),
                 "Operating System": config.get("Operating System", "N/A"),
                 "Pricing Tier": config.get("Pricing Tier", "N/A"),
                 "Storage Type": config.get("Storage Type", "None"),
@@ -846,7 +1184,28 @@ if calculate_clicked:
                 "Quantity": result.get("Quantity", 1),
                 "vCPU": specs.get("vCPU", ""),
                 "RAM (GB)": specs.get("RAM (GB)", ""),
-                "Line Total (INR)": result.get("Grand Total", 0.0),
+                "Network Element": ns_element if ns_element != "None" else "",
+                "Network Feature": ns_feature if ns_feature != "None" else "",
+                "Network Sub Type": ns_subtype if ns_subtype != "None" else "",
+                "Bandwidth (Mbps)": ns_bandwidth_mbps,
+                "Network Cost (INR)": round(ns_cost, 2),
+                "License Element": lic_element if lic_element != "None" else "",
+                "License Sub Type": lic_subtype if lic_subtype != "None" else "",
+                "License Qty": lic_qty,
+                "License Cost (INR)": round(lic_cost, 2),
+                "Backup Storage Model": bk_model if bk_model != "None" else "",
+                "Backup Storage (GB)": bk_qty,
+                "Backup Storage Cost (INR)": round(bk_cost, 2),
+                "Network Element Type": ne_element if ne_element != "None" else "",
+                "Network Element Cost (INR)": round(ne_cost, 2),
+                "Management Type": mg_element if mg_element != "None" else "",
+                "Management Qty": mg_qty,
+                "Management Cost (INR)": round(mg_cost, 2),
+                "Misc Element": mi_element if mi_element != "None" else "",
+                "Misc Qty": mi_qty,
+                "Misc Cost (INR)": round(mi_cost, 2),
+                "Additional Services Total (INR)": round(total_additional, 2),
+                "Line Total (INR)": round(combined_total, 2),
             }
             st.session_state.quote_items.append(item)
             st.session_state.last_config = {
@@ -861,9 +1220,9 @@ if calculate_clicked:
             st.markdown('<div class="error-banner">❌ Could not calculate price. Please check your selections.</div>',
                         unsafe_allow_html=True)
 
-
+# ─────────────────────────────────────────────
 # RESULTS SECTION
-
+# ─────────────────────────────────────────────
 if st.session_state.quote_items:
     qid = st.session_state.quotation_id
     items = st.session_state.quote_items
@@ -876,22 +1235,29 @@ if st.session_state.quote_items:
     st.markdown(f"""
     <div class="price-box">
         <p>Quotation ID: {qid}</p>
-        <p>{len(items)} flavour configuration(s) added</p>
+        <p>{len(items)} configuration(s) added</p>
         <h1>{format_inr(grand_total)}</h1>
         <p>Grand Total per Month (INR, excl. taxes)</p>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("**📦 Added Flavours / Configurations**")
+    st.markdown("**📦 Added Configurations**")
     quote_df = pd.DataFrame(items)
     display_cols = [
-        "Product", "Flavour", "Operating System", "Pricing Tier",
+        "Product", "Flavour", "Element", "Hypervisor",
+        "Operating System", "Pricing Tier",
         "Storage Type", "Storage (GB)", "Backup Type", "Backup (GB)",
         "Firewall", "Public IPs", "Quantity", "vCPU", "RAM (GB)",
-        "Line Total (INR)"
+        "Network Element", "Network Feature", "Network Sub Type", "Bandwidth (Mbps)", "Network Cost (INR)",
+        "License Element", "License Sub Type", "License Qty", "License Cost (INR)",
+        "Backup Storage Model", "Backup Storage (GB)", "Backup Storage Cost (INR)",
+        "Network Element Type", "Network Element Cost (INR)",
+        "Management Type", "Management Qty", "Management Cost (INR)",
+        "Misc Element", "Misc Qty", "Misc Cost (INR)",
+        "Additional Services Total (INR)", "Line Total (INR)"
     ]
-    quote_df = quote_df[display_cols]
-    st.dataframe(quote_df, use_container_width=True, hide_index=True)
+    display_cols = [c for c in display_cols if c in quote_df.columns]
+    st.dataframe(quote_df[display_cols], use_container_width=True, hide_index=True)
 
     with st.expander("Remove item from quote"):
         remove_options = [
@@ -906,11 +1272,11 @@ if st.session_state.quote_items:
         if st.button("Remove selected configuration", type="secondary"):
             remove_index = remove_options.index(selected_remove)
             st.session_state.quote_items.pop(remove_index)
-            st.experimental_rerun()
+            st.rerun()
 
     if st.button("Clear quote list", type="secondary"):
         st.session_state.quote_items = []
-        st.experimental_rerun()
+        st.rerun()
 
     st.markdown("---")
     st.markdown('<div class="section-title">⬇️ Download Quotation</div>',

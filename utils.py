@@ -128,6 +128,8 @@ def build_quote_export_dataframe(items):
             "S.No": index,
             "Product": item.get("Product", ""),
             "Flavour": item.get("Flavour", ""),
+            "Element": item.get("Element", ""),
+            "Hypervisor": item.get("Hypervisor", ""),
             "Operating System": item.get("Operating System", ""),
             "Pricing Tier": item.get("Pricing Tier", ""),
             "Storage Type": item.get("Storage Type", ""),
@@ -139,6 +141,34 @@ def build_quote_export_dataframe(items):
             "Quantity": item.get("Quantity", 1),
             "vCPU": item.get("vCPU", ""),
             "RAM (GB)": item.get("RAM (GB)", ""),
+            # ── Step 3: Network & Security ──
+            "Network Element": item.get("Network Element", ""),
+            "Network Feature": item.get("Network Feature", ""),
+            "Network Sub Type": item.get("Network Sub Type", ""),
+            "Bandwidth (Mbps)": item.get("Bandwidth (Mbps)", 0),
+            "Network Cost (INR)": item.get("Network Cost (INR)", 0.0),
+            # ── Step 3: Licenses ──
+            "License Element": item.get("License Element", ""),
+            "License Sub Type": item.get("License Sub Type", ""),
+            "License Qty": item.get("License Qty", 0),
+            "License Cost (INR)": item.get("License Cost (INR)", 0.0),
+            # ── Step 3: Backup Storage ──
+            "Backup Storage Model": item.get("Backup Storage Model", ""),
+            "Backup Storage (GB)": item.get("Backup Storage (GB)", 0),
+            "Backup Storage Cost (INR)": item.get("Backup Storage Cost (INR)", 0.0),
+            # ── Step 3: Network Elements ──
+            "Network Element Type": item.get("Network Element Type", ""),
+            "Network Element Cost (INR)": item.get("Network Element Cost (INR)", 0.0),
+            # ── Step 3: Management ──
+            "Management Type": item.get("Management Type", ""),
+            "Management Qty": item.get("Management Qty", 0),
+            "Management Cost (INR)": item.get("Management Cost (INR)", 0.0),
+            # ── Step 3: Miscellaneous ──
+            "Misc Element": item.get("Misc Element", ""),
+            "Misc Qty": item.get("Misc Qty", 0),
+            "Misc Cost (INR)": item.get("Misc Cost (INR)", 0.0),
+            # ── Totals ──
+            "Additional Services Total (INR)": item.get("Additional Services Total (INR)", 0.0),
             "Line Total (INR)": item.get("Line Total (INR)", 0.0),
         })
 
@@ -198,7 +228,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             "num_format": "#,##0.00"
         })
 
-        worksheet.merge_range("A1:M1", "PRICE QUOTATION", title_fmt)
+        worksheet.merge_range("A1:AM1", "PRICE QUOTATION", title_fmt)
         worksheet.write("A2", f"Quotation ID: {quotation_id}", subtitle_fmt)
         worksheet.write("A3", f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}", subtitle_fmt)
 
@@ -232,6 +262,8 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         worksheet.write(last_row, 9, "", total_fmt)
         worksheet.write(last_row, 10, "", total_fmt)
         worksheet.write(last_row, 11, "", total_fmt)
-        worksheet.write(last_row, 12, grand_total, total_fmt)
+        for col in range(37):
+            worksheet.write(last_row, col, "", total_fmt)
+        worksheet.write(last_row, 37, grand_total, total_fmt)
 
     return output.getvalue()
