@@ -23,9 +23,9 @@ from register_page import show_register
 from profile_page import show_profile
 from history_page import show_cart
 
-# ─────────────────────────────────────────────
+
 # ADDITIONAL SERVICES PRICING DATA
-# ─────────────────────────────────────────────
+
 
 INTERNET_BANDWIDTH_PRICE_PER_MBPS = 50  # INR per Mbps per month (from BOQ: 1GB = 50000)
 
@@ -66,9 +66,9 @@ COLOCATION_PRICES = {
 
 PUBLIC_IP_PRICE_CONNECTIVITY = 900  # from master file Connectivity sheet
 
-# ─────────────────────────────────────────────
+
 # PAGE CONFIG
-# ─────────────────────────────────────────────
+
 st.set_page_config(
     page_title="CloudQuote",
     page_icon="☁️",
@@ -141,9 +141,9 @@ def save_current_quotation_history(quotation_id, customer_name, company_name,
     )
 
 
-# ─────────────────────────────────────────────
+
 # SESSION STATE INIT
-# ─────────────────────────────────────────────
+
 for key, default in [
         ("logged_in", False), ("user", None), ("page", "login"),
         ("result", None), ("quotation_id", None), ("last_config", {}),
@@ -154,9 +154,13 @@ for key, default in [
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ─────────────────────────────────────────────
+# ── Persist login across reruns triggered by download buttons ──
+if st.session_state.get("logged_in") and st.session_state.get("user"):
+    st.session_state.logged_in = True
+
+
 # CUSTOM CSS
-# ─────────────────────────────────────────────
+
 st.markdown("""
 <style>
 
@@ -471,9 +475,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
+
 # ROUTING — show login/register if not logged in
-# ─────────────────────────────────────────────
+
 if not st.session_state.logged_in:
     if st.session_state.page == "register":
         show_register()
@@ -490,9 +494,9 @@ if "last_config" not in st.session_state:
 if "quote_items" not in st.session_state:
     st.session_state.quote_items = []
 
-# ─────────────────────────────────────────────
+
 # NAVBAR
-# ─────────────────────────────────────────────
+
 user = st.session_state.user
 nav_cols = st.columns([3, 1, 1, 1, 1])
 with nav_cols[0]:
@@ -528,9 +532,9 @@ with nav_cols[4]:
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────
+
 # PAGE ROUTING
-# ─────────────────────────────────────────────
+
 if st.session_state.page == "profile":
     show_profile()
     st.stop()
@@ -539,9 +543,9 @@ if st.session_state.page == "cart":
     show_cart()
     st.stop()
 
-# ─────────────────────────────────────────────
+
 # SIDEBAR
-# ─────────────────────────────────────────────
+
 with st.sidebar:
     st.markdown("## ☁️ Cloud Pricing")
     st.markdown("---")
@@ -564,9 +568,9 @@ with st.sidebar:
     st.markdown("- Term discount applicable only for fixed-term contracts")
     st.markdown("- Components include VMs, Storage, Backup, and Connectivity")
 
-# ─────────────────────────────────────────────
+
 # MAIN HEADER
-# ─────────────────────────────────────────────
+
 st.markdown("""
 <div class="card">
     <h2 style="margin:0; color:#1B3A6B;"> CloudQuote </h2>
@@ -596,9 +600,9 @@ with st.container():
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
+
 # STEP 1 — PRODUCT SELECTION
-# ─────────────────────────────────────────────
+
 st.markdown('<div class="section-title">Step 1 — Select Product</div>',
             unsafe_allow_html=True)
 
@@ -611,17 +615,17 @@ product = st.selectbox(
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────
+
 # STEP 2 — VM CONFIGURATION
-# ─────────────────────────────────────────────
+
 st.markdown('<div class="section-title">Step 2 — Configure VM</div>',
             unsafe_allow_html=True)
 
 config = {}
 
-# ══════════════════════════════════════════════
+
 # VAYU CLOUD FORM
-# ══════════════════════════════════════════════
+
 if product == "Vayu Cloud":
     col1, col2 = st.columns(2)
 
@@ -710,9 +714,9 @@ if product == "Vayu Cloud":
         "Public IPs": public_ips,
     }
 
-# ══════════════════════════════════════════════
+
 # HANA GRID FORM
-# ══════════════════════════════════════════════
+
 elif product == "Hana Grid":
     col1, col2 = st.columns(2)
 
@@ -784,9 +788,9 @@ elif product == "Hana Grid":
         "Backup (GB)": backup_gb,
     }
 
-# ══════════════════════════════════════════════
+
 # OLVM FORM
-# ══════════════════════════════════════════════
+
 elif product == "OLVM":
     col1, col2 = st.columns(2)
 
@@ -852,9 +856,9 @@ elif product == "OLVM":
         "Backup (GB)": backup_gb,
     }
 
-# ─────────────────────────────────────────────
+
 # FLAVOUR SPECS PREVIEW
-# ─────────────────────────────────────────────
+
 specs = get_flavour_specs(product, flavour)
 if specs:
     st.markdown('<div class="section-title">Selected Flavour Specs</div>',
@@ -871,9 +875,9 @@ if specs:
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────
+
 # STEP 3 — ADDITIONAL SERVICES (NEW)
-# ─────────────────────────────────────────────
+
 st.markdown('<div class="section-title">Step 3 — Additional Services (Optional)</div>',
             unsafe_allow_html=True)
 
@@ -1067,7 +1071,7 @@ with st.expander("🖧 Network Elements", expanded=False):
             min_value=0, max_value=100,
             value=0, step=1,
             key="ne_qty"
-        )
+        )   
         ne_remark = st.text_input(
             "Remark",
             value="",
@@ -1188,9 +1192,9 @@ if total_additional > 0:
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────
+
 # BUTTONS ROW
-# ─────────────────────────────────────────────
+
 btn_col1, btn_col2, btn_col3 = st.columns([2, 1, 1])
 
 with btn_col1:
@@ -1232,9 +1236,9 @@ if reset_clicked:
 
     st.rerun()
 
-# ─────────────────────────────────────────────
+
 # CALCULATE
-# ─────────────────────────────────────────────
+
 if calculate_clicked:
     errors = []
     if storage_type != "None" and storage_gb == 0:
@@ -1330,9 +1334,9 @@ if calculate_clicked:
             st.markdown('<div class="error-banner">❌ Could not calculate price. Please check your selections.</div>',
                         unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
+
 # RESULTS SECTION
-# ─────────────────────────────────────────────
+
 if st.session_state.quote_items:
     qid = st.session_state.quotation_id
     items = st.session_state.quote_items

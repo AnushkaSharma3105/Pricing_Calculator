@@ -38,9 +38,9 @@ def show_login():
         st.session_state.page = "register"
         st.rerun()
 
-    # ─────────────────────────────────────────────
+    
     # FORGOT PASSWORD
-    # ─────────────────────────────────────────────
+    
     st.markdown("---")
     st.markdown("<p style='text-align:center; color:#475569;'>Forgot your password?</p>",
                 unsafe_allow_html=True)
@@ -62,7 +62,7 @@ def show_login():
 
     if st.session_state.show_forgot:
 
-        # ── STEP 1: Enter email and fetch security question ──
+        # 
         if st.session_state.forgot_step == 1:
             st.markdown("#### Step 1 — Enter your registered email")
             with st.form("forgot_step1_form"):
@@ -88,7 +88,7 @@ def show_login():
                         st.session_state.forgot_step = 2
                         st.rerun()
 
-        # ── STEP 2: Answer security question ──
+        # STEP 2: Answer security question 
         elif st.session_state.forgot_step == 2:
             st.markdown("#### Step 2 — Answer your security question")
             st.info(f"🔐 **{st.session_state.forgot_question}**")
@@ -120,7 +120,7 @@ def show_login():
                     st.session_state.forgot_step = 1
                     st.rerun()
 
-        # ── STEP 3: Set new password ──
+        # STEP 3: Set new password 
         elif st.session_state.forgot_step == 3:
             st.markdown("#### Step 3 — Set your new password")
 

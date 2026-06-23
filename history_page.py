@@ -127,7 +127,7 @@ def show_cart():
                     delete_quotation_by_id(quote['id'])
                     st.success("Quotation deleted.")
                     st.session_state.delete_confirm_id = None
-                    st.experimental_rerun()
+                    st.rerun()
                 if cancel_col.button("Cancel", key=f"cancel_del_{quote['id']}"):
                     st.session_state.delete_confirm_id = None
         st.markdown("</div>", unsafe_allow_html=True)
