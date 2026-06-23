@@ -1047,7 +1047,7 @@ with st.expander("🖧 Network Elements", expanded=False):
             min_value=0, max_value=100,
             value=0, step=1,
             key="ne_qty"
-        )
+        )   
         ne_remark = st.text_input(
             "Remark",
             value="",
