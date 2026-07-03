@@ -474,6 +474,15 @@ st.markdown("""
         color: white !important;
         opacity: 1 !important;
     }
+            
+
+    
+    /* Bigger, bolder expander section headers (Step 3) */
+    div[data-testid="stExpander"] summary p {
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        color: #1B3A6B !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -890,11 +899,12 @@ elif product == "OLVM":
 # FLAVOUR SPECS PREVIEW
 
 specs = get_flavour_specs(product, flavour)
-if specs:
+specs_to_display = {k: v for k, v in (specs or {}).items() if k != "Root Disk Windows (GB)"}
+if specs_to_display:
     st.markdown('<div class="section-title">Selected Flavour Specs</div>',
                 unsafe_allow_html=True)
-    spec_cols = st.columns(len(specs))
-    for i, (k, v) in enumerate(specs.items()):
+    spec_cols = st.columns(len(specs_to_display))
+    for i, (k, v) in enumerate(specs_to_display.items()):
         with spec_cols[i]:
             st.markdown(f"""
             <div class="metric-card">
@@ -911,7 +921,7 @@ st.markdown("---")
 st.markdown('<div class="section-title">Step 3 — Additional Services (Optional)</div>',
             unsafe_allow_html=True)
 
-with st.expander("🌐 Network & Security Services", expanded=False):
+with st.expander("**🌐 Network & Security Services**", expanded=False):
     ns_col1, ns_col2 = st.columns(2)
 
     with ns_col1:
@@ -966,7 +976,7 @@ with st.expander("🌐 Network & Security Services", expanded=False):
         ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ns_bandwidth_mbps * ns_qty
     st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
 
-with st.expander("🔐 Software & Licenses", expanded=False):
+with st.expander("**🔐 Software & Licenses**", expanded=False):
     lic_col1, lic_col2 = st.columns(2)
 
     with lic_col1:
@@ -1014,7 +1024,7 @@ with st.expander("🔐 Software & Licenses", expanded=False):
         lic_cost = LICENSE_PRICES.get(lic_subtype, 0) * lic_qty
     st.info(f"Estimated License Cost: {format_inr(lic_cost)} / month")
 
-with st.expander("💾 Backup Storage", expanded=False):
+with st.expander("**💾 Backup Storage**", expanded=False):
     bk_col1, bk_col2 = st.columns(2)
 
     with bk_col1:
@@ -1072,7 +1082,7 @@ with st.expander("💾 Backup Storage", expanded=False):
         bk_cost = bk_price_map.get(bk_model, 0) * bk_qty
     st.info(f"Estimated Backup Storage Cost: {format_inr(bk_cost)} / month")
 
-with st.expander("🖧 Network Elements", expanded=False):
+with st.expander("**🖧 Network Elements**", expanded=False):
     ne_col1, ne_col2 = st.columns(2)
 
     with ne_col1:
@@ -1112,7 +1122,7 @@ with st.expander("🖧 Network Elements", expanded=False):
     ne_cost = NETWORK_ELEMENT_PRICES.get(ne_element, 0) if ne_element != "None" else 0
     st.info(f"Estimated Network Element Cost: {format_inr(ne_cost)} / month")
 
-with st.expander("⚙️ Management Services", expanded=False):
+with st.expander("**⚙️ Management Services**", expanded=False):
     mg_col1, mg_col2 = st.columns(2)
 
     with mg_col1:
@@ -1159,7 +1169,7 @@ with st.expander("⚙️ Management Services", expanded=False):
         mg_cost = mg_price_map.get(mg_element, 0) * mg_qty
     st.info(f"Estimated Management Cost: {format_inr(mg_cost)} / month")
 
-with st.expander("📦 Miscellaneous Items", expanded=False):
+with st.expander("**📦 Miscellaneous Items**", expanded=False):
     mi_col1, mi_col2 = st.columns(2)
 
     with mi_col1:
@@ -1273,8 +1283,7 @@ if calculate_clicked:
     errors = []
     if storage_type != "None" and storage_gb == 0:
         errors.append("Please enter Storage Size (GB) greater than 0.")
-    if backup_type != "None" and backup_gb == 0:
-        errors.append("Please enter Backup Size (GB) greater than 0.")
+    
 
     if errors:
         for e in errors:
