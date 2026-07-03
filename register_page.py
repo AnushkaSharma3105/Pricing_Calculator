@@ -67,8 +67,13 @@ def show_register():
                 st.error(message)
 
     st.markdown("---")
-    st.markdown("<p style='text-align:center; color:#475569;'>Already have an account?</p>",
-                unsafe_allow_html=True)
-    if st.button("Sign In Instead", use_container_width=True):
-        st.session_state.page = "login"
-        st.rerun()
+    if not st.session_state.get("logged_in"):
+        st.markdown("<p style='text-align:center; color:#475569;'>Already have an account?</p>",
+                    unsafe_allow_html=True)
+        if st.button("Sign In Instead", use_container_width=True):
+            st.session_state.page = "login"
+            st.rerun()
+    else:
+        if st.button("← Back to Admin Panel", use_container_width=True, type="secondary"):
+            st.session_state.page = "admin"
+            st.rerun()

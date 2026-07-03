@@ -31,12 +31,7 @@ def show_login():
             else:
                 st.error(message)
 
-    st.markdown("---")
-    st.markdown("<p style='text-align:center; color:#475569;'>Don't have an account?</p>",
-                unsafe_allow_html=True)
-    if st.button("Create an Account", use_container_width=True):
-        st.session_state.page = "register"
-        st.rerun()
+    
 
     
     # FORGOT PASSWORD

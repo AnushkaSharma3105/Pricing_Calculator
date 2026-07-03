@@ -20,11 +20,16 @@ def init_quote_history_db():
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Migration: add user_email column if it doesn't exist yet
+    try:
+        c.execute("ALTER TABLE quotation_history ADD COLUMN user_email TEXT")
+    except sqlite3.OperationalError:
+        pass  # column already exists
     conn.commit()
     conn.close()
 
 
-def save_quotation_history(quotation_id, customer_name, company_name, quotation_payload, grand_total):
+def save_quotation_history(quotation_id, user_email, customer_name, company_name, quotation_payload, grand_total):
     init_quote_history_db()
     payload_json = json.dumps(quotation_payload, ensure_ascii=False)
 
@@ -39,21 +44,22 @@ def save_quotation_history(quotation_id, customer_name, company_name, quotation_
         c.execute(
             """
             UPDATE quotation_history
-            SET customer_name = ?, company_name = ?, quotation_json = ?, grand_total = ?
+            SET user_email = ?, customer_name = ?, company_name = ?, quotation_json = ?, grand_total = ?
             WHERE quotation_id = ?
             """,
-            (customer_name, company_name, payload_json, grand_total, quotation_id)
+            (user_email, customer_name, company_name, payload_json, grand_total, quotation_id)
         )
     else:
         c.execute(
             """
             INSERT INTO quotation_history (
-                quotation_id, customer_name, company_name,
+                quotation_id, user_email, customer_name, company_name,
                 quotation_json, grand_total, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 quotation_id,
+                user_email,
                 customer_name,
                 company_name,
                 payload_json,
@@ -66,16 +72,22 @@ def save_quotation_history(quotation_id, customer_name, company_name, quotation_
     conn.close()
 
 
-def fetch_all_quotations():
+def fetch_all_quotations(user_email=None):
     init_quote_history_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    user_email = (user_email or "").strip().lower()
+    if not user_email:
+        conn.close()
+        return []  # no identified user -> show nothing, never everything
     rows = c.execute(
         "SELECT id, quotation_id, customer_name, company_name, grand_total, created_at"
-        " FROM quotation_history"
-        " ORDER BY created_at DESC"
+        " FROM quotation_history WHERE LOWER(TRIM(user_email)) = ?"
+        " ORDER BY created_at DESC",
+        (user_email,)
     ).fetchall()
     conn.close()
+    
 
     return [
         {

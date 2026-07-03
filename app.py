@@ -23,6 +23,8 @@ from register_page import show_register
 from profile_page import show_profile
 from history_page import show_cart
 
+from admin_page import show_admin_panel
+
 
 # ADDITIONAL SERVICES PRICING DATA
 
@@ -121,7 +123,7 @@ def build_quotation_history_payload(quotation_id, customer_name, company_name, g
     }
 
 
-def save_current_quotation_history(quotation_id, customer_name, company_name,
+def save_current_quotation_history(quotation_id, user_email, customer_name, company_name,
                                    quote_items, last_config, result, grand_total):
     payload = build_quotation_history_payload(
         quotation_id=quotation_id,
@@ -134,6 +136,7 @@ def save_current_quotation_history(quotation_id, customer_name, company_name,
     )
     save_quotation_history(
         quotation_id=payload["quotation_id"],
+        user_email=user_email,
         customer_name=payload["customer_name"],
         company_name=payload["company_name"],
         quotation_payload=payload["quotation_payload"],
@@ -471,6 +474,15 @@ st.markdown("""
         color: white !important;
         opacity: 1 !important;
     }
+            
+
+    
+    /* Bigger, bolder expander section headers (Step 3) */
+    div[data-testid="stExpander"] summary p {
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        color: #1B3A6B !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -479,10 +491,7 @@ st.markdown("""
 # ROUTING — show login/register if not logged in
 
 if not st.session_state.logged_in:
-    if st.session_state.page == "register":
-        show_register()
-    else:
-        show_login()
+    show_login()
     st.stop()
 
 if "result" not in st.session_state:
@@ -498,7 +507,12 @@ if "quote_items" not in st.session_state:
 # NAVBAR
 
 user = st.session_state.user
-nav_cols = st.columns([3, 1, 1, 1, 1])
+
+ADMIN_EMAIL = "vaibhav.chaudhary@tatatel.co.in"
+is_admin = (st.session_state.user.get("email") or "").strip().lower() == ADMIN_EMAIL.strip().lower()
+
+nav_cols = st.columns([3, 1, 1, 1, 1, 1]) if is_admin else st.columns([3, 1, 1, 1, 1])
+
 with nav_cols[0]:
     st.markdown(
         f"<div style='padding-top:8px; font-size:1.1rem; font-weight:800; color:#1B3A6B;'>"
@@ -508,7 +522,7 @@ with nav_cols[0]:
         unsafe_allow_html=True
     )
 with nav_cols[1]:
-    if st.button("📊 Dashboard", use_container_width=True,
+    if st.button("Dashboard", use_container_width=True,
                  type="primary" if st.session_state.page == "dashboard" else "secondary"):
         st.session_state.page = "dashboard"
         st.rerun()
@@ -522,13 +536,31 @@ with nav_cols[3]:
                  type="primary" if st.session_state.page == "cart" else "secondary"):
         st.session_state.page = "cart"
         st.rerun()
-with nav_cols[4]:
-    if st.button("🚪 Logout", use_container_width=True, type="secondary"):
-        st.session_state.logged_in = False
-        st.session_state.user = None
-        st.session_state.page = "login"
-        st.session_state.result = None
-        st.rerun()
+if is_admin:
+    with nav_cols[4]:
+        if st.button("🔐 Admin", use_container_width=True,
+                     type="primary" if st.session_state.page == "admin" else "secondary"):
+            st.session_state.page = "admin"
+            st.rerun()
+    with nav_cols[5]:
+        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+            for key in ["logged_in", "user", "page", "result", "quotation_id",
+                        "last_config", "quote_items", "customer_name", "company_name",
+                        "history_saved_for_qid", "history_view_id", "delete_confirm_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.page = "login"
+            st.rerun()
+else:
+    with nav_cols[4]:
+        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+            for key in ["logged_in", "user", "page", "result", "quotation_id",
+                        "last_config", "quote_items", "customer_name", "company_name",
+                        "history_saved_for_qid", "history_view_id", "delete_confirm_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.page = "login"
+            st.rerun()
 
 st.markdown("---")
 
@@ -541,6 +573,13 @@ if st.session_state.page == "profile":
 
 if st.session_state.page == "cart":
     show_cart()
+    st.stop()
+
+if st.session_state.page == "admin":
+    if not is_admin:
+        st.error("⛔ Access denied. You are not authorized to view this page.")
+        st.stop()
+    show_admin_panel()
     st.stop()
 
 
@@ -860,11 +899,12 @@ elif product == "OLVM":
 # FLAVOUR SPECS PREVIEW
 
 specs = get_flavour_specs(product, flavour)
-if specs:
+specs_to_display = {k: v for k, v in (specs or {}).items() if k != "Root Disk Windows (GB)"}
+if specs_to_display:
     st.markdown('<div class="section-title">Selected Flavour Specs</div>',
                 unsafe_allow_html=True)
-    spec_cols = st.columns(len(specs))
-    for i, (k, v) in enumerate(specs.items()):
+    spec_cols = st.columns(len(specs_to_display))
+    for i, (k, v) in enumerate(specs_to_display.items()):
         with spec_cols[i]:
             st.markdown(f"""
             <div class="metric-card">
@@ -881,7 +921,7 @@ st.markdown("---")
 st.markdown('<div class="section-title">Step 3 — Additional Services (Optional)</div>',
             unsafe_allow_html=True)
 
-with st.expander("🌐 Network & Security Services", expanded=False):
+with st.expander("**🌐 Network & Security Services**", expanded=False):
     ns_col1, ns_col2 = st.columns(2)
 
     with ns_col1:
@@ -936,7 +976,7 @@ with st.expander("🌐 Network & Security Services", expanded=False):
         ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ns_bandwidth_mbps * ns_qty
     st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
 
-with st.expander("🔐 Software & Licenses", expanded=False):
+with st.expander("**🔐 Software & Licenses**", expanded=False):
     lic_col1, lic_col2 = st.columns(2)
 
     with lic_col1:
@@ -984,7 +1024,7 @@ with st.expander("🔐 Software & Licenses", expanded=False):
         lic_cost = LICENSE_PRICES.get(lic_subtype, 0) * lic_qty
     st.info(f"Estimated License Cost: {format_inr(lic_cost)} / month")
 
-with st.expander("💾 Backup Storage", expanded=False):
+with st.expander("**💾 Backup Storage**", expanded=False):
     bk_col1, bk_col2 = st.columns(2)
 
     with bk_col1:
@@ -1042,7 +1082,7 @@ with st.expander("💾 Backup Storage", expanded=False):
         bk_cost = bk_price_map.get(bk_model, 0) * bk_qty
     st.info(f"Estimated Backup Storage Cost: {format_inr(bk_cost)} / month")
 
-with st.expander("🖧 Network Elements", expanded=False):
+with st.expander("**🖧 Network Elements**", expanded=False):
     ne_col1, ne_col2 = st.columns(2)
 
     with ne_col1:
@@ -1082,7 +1122,7 @@ with st.expander("🖧 Network Elements", expanded=False):
     ne_cost = NETWORK_ELEMENT_PRICES.get(ne_element, 0) if ne_element != "None" else 0
     st.info(f"Estimated Network Element Cost: {format_inr(ne_cost)} / month")
 
-with st.expander("⚙️ Management Services", expanded=False):
+with st.expander("**⚙️ Management Services**", expanded=False):
     mg_col1, mg_col2 = st.columns(2)
 
     with mg_col1:
@@ -1129,7 +1169,7 @@ with st.expander("⚙️ Management Services", expanded=False):
         mg_cost = mg_price_map.get(mg_element, 0) * mg_qty
     st.info(f"Estimated Management Cost: {format_inr(mg_cost)} / month")
 
-with st.expander("📦 Miscellaneous Items", expanded=False):
+with st.expander("**📦 Miscellaneous Items**", expanded=False):
     mi_col1, mi_col2 = st.columns(2)
 
     with mi_col1:
@@ -1243,8 +1283,7 @@ if calculate_clicked:
     errors = []
     if storage_type != "None" and storage_gb == 0:
         errors.append("Please enter Storage Size (GB) greater than 0.")
-    if backup_type != "None" and backup_gb == 0:
-        errors.append("Please enter Backup Size (GB) greater than 0.")
+    
 
     if errors:
         for e in errors:
@@ -1348,6 +1387,7 @@ if st.session_state.quote_items:
 
     save_current_quotation_history(
         quotation_id=qid,
+        user_email=st.session_state.user.get("email"),
         customer_name=st.session_state.customer_name,
         company_name=st.session_state.company_name,
         quote_items=items,
@@ -1442,6 +1482,7 @@ elif st.session_state.result:
 
     save_current_quotation_history(
         quotation_id=qid,
+        user_email=st.session_state.user.get("email"),
         customer_name=st.session_state.customer_name,
         company_name=st.session_state.company_name,
         quote_items=st.session_state.quote_items,
