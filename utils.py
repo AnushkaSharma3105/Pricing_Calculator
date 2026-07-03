@@ -391,7 +391,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         # SECTION 1: Network & Security Services
         
         row = write_section_header(worksheet, row, "Network and Security Services")
-        ns_headers = ["Element", "Feature", "Sub Type", "Make", "Model",
+        ns_headers = ["Element", "Feature", "Sub Type", "Make", "Model", None,
                       "Description", "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, ns_headers)
         net_rows = df[df["Network Element"].notna() & (df["Network Element"] != "")]
@@ -401,7 +401,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     r2.get("Network Element", ""),
                     r2.get("Network Feature", ""),
                     r2.get("Network Sub Type", ""),
-                    "", "",
+                    "", "", "",
                     r2.get("Network Sub Type", ""),
                     r2.get("Bandwidth (Mbps)", 0),
                     "Mbps",
@@ -410,7 +410,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 ]
                 row = write_data_row(worksheet, row, vals)
         else:
-            row = write_data_row(worksheet, row, [""] * 10)
+            row = write_data_row(worksheet, row, [""] * 11)
         row += 1
 
         
@@ -442,7 +442,8 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         # SECTION 3: Software & Licenses
         
         row = write_section_header(worksheet, row, "Software and Licenses")
-        lic_headers = ["Element", "Sub Type", "Description", "Unit", "Qty", "Remark", "Cost (INR)"]
+        lic_headers = ["Element", "Sub Type", "Description", None, None, None, None,
+                       "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, lic_headers)
         lic_rows = df[df["License Element"].notna() & (df["License Element"] != "")]
         if not lic_rows.empty:
@@ -451,6 +452,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     r2.get("License Element", ""),
                     r2.get("License Sub Type", ""),
                     "",
+                    "", "", "", "",
                     "# of Licenses",
                     r2.get("License Qty", 0),
                     "",
@@ -458,7 +460,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 ]
                 row = write_data_row(worksheet, row, vals)
         else:
-            row = write_data_row(worksheet, row, [""] * 7)
+            row = write_data_row(worksheet, row, [""] * 11)
         row += 1
 
         
@@ -466,7 +468,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         
         row = write_section_header(worksheet, row, "Backup Storage")
         bk_headers = ["Element", "Make", "Model", "Storage Configuration",
-                      "Description", "Unit", "Qty", "Remark", "Cost (INR)"]
+                      "Description", None, None, "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, bk_headers)
         bk_rows = df[df["Backup Storage Model"].notna() & (df["Backup Storage Model"] != "")]
         if not bk_rows.empty:
@@ -477,6 +479,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     r2.get("Backup Storage Model", ""),
                     "Object-Resilient",
                     "",
+                    "", "",
                     "GB",
                     r2.get("Backup Storage (GB)", 0),
                     "",
@@ -484,68 +487,74 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 ]
                 row = write_data_row(worksheet, row, vals)
         else:
-            row = write_data_row(worksheet, row, [""] * 9)
+            row = write_data_row(worksheet, row, [""] * 11)
         row += 1
 
         
         # SECTION 5: Network Elements
         
         row = write_section_header(worksheet, row, "Network Element")
-        ne_headers = ["Element", "Description", "Unit", "Qty", "Remark", "Cost (INR)"]
+        ne_headers = ["Element", "Description", None, None, None, None, None,
+                      "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, ne_headers)
         ne_rows = df[df["Network Element Type"].notna() & (df["Network Element Type"] != "")]
         if not ne_rows.empty:
             for _, r2 in ne_rows.iterrows():
                 vals = [
                     r2.get("Network Element Type", ""),
-                    "", "", 1, "",
+                    "", "", "", "", "", "",
+                    "", 1, "",
                     r2.get("Network Element Cost (INR)", 0),
                 ]
                 row = write_data_row(worksheet, row, vals)
         else:
-            row = write_data_row(worksheet, row, [""] * 6)
+            row = write_data_row(worksheet, row, [""] * 11)
         row += 1
 
         
         # SECTION 6: Management Services
         
         row = write_section_header(worksheet, row, "Management Services")
-        mg_headers = ["Element", "Description", "Unit", "Qty", "Remark", "Cost (INR)"]
+        mg_headers = ["Element", "Description", None, None, None, None, None,
+                      "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, mg_headers)
         mg_rows = df[df["Management Type"].notna() & (df["Management Type"] != "")]
         if not mg_rows.empty:
             for _, r2 in mg_rows.iterrows():
                 vals = [
                     r2.get("Management Type", ""),
-                    "", "",
+                    "", "", "", "", "", "",
+                    "",
                     r2.get("Management Qty", 0),
                     "",
                     r2.get("Management Cost (INR)", 0),
                 ]
                 row = write_data_row(worksheet, row, vals)
         else:
-            row = write_data_row(worksheet, row, [""] * 6)
+            row = write_data_row(worksheet, row, [""] * 11)
         row += 1
 
         
         # SECTION 7: Miscellaneous
         
         row = write_section_header(worksheet, row, "Miscellaneous Items")
-        mi_headers = ["Element", "Description", "Unit", "Qty", "Remark", "Cost (INR)"]
+        mi_headers = ["Element", "Description", None, None, None, None, None,
+                      "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, mi_headers)
         mi_rows = df[df["Misc Element"].notna() & (df["Misc Element"] != "")]
         if not mi_rows.empty:
             for _, r2 in mi_rows.iterrows():
                 vals = [
                     r2.get("Misc Element", ""),
-                    "", "",
+                    "", "", "", "", "", "",
+                    "",
                     r2.get("Misc Qty", 0),
                     "",
                     r2.get("Misc Cost (INR)", 0),
                 ]
                 row = write_data_row(worksheet, row, vals)
         else:
-            row = write_data_row(worksheet, row, [""] * 6)
+            row = write_data_row(worksheet, row, [""] * 11)
         row += 1
 
         
