@@ -23,6 +23,8 @@ from register_page import show_register
 from profile_page import show_profile
 from history_page import show_cart
 
+from admin_page import show_admin_panel
+
 
 # ADDITIONAL SERVICES PRICING DATA
 
@@ -121,7 +123,7 @@ def build_quotation_history_payload(quotation_id, customer_name, company_name, g
     }
 
 
-def save_current_quotation_history(quotation_id, customer_name, company_name,
+def save_current_quotation_history(quotation_id, user_email, customer_name, company_name,
                                    quote_items, last_config, result, grand_total):
     payload = build_quotation_history_payload(
         quotation_id=quotation_id,
@@ -134,6 +136,7 @@ def save_current_quotation_history(quotation_id, customer_name, company_name,
     )
     save_quotation_history(
         quotation_id=payload["quotation_id"],
+        user_email=user_email,
         customer_name=payload["customer_name"],
         company_name=payload["company_name"],
         quotation_payload=payload["quotation_payload"],
@@ -479,10 +482,7 @@ st.markdown("""
 # ROUTING — show login/register if not logged in
 
 if not st.session_state.logged_in:
-    if st.session_state.page == "register":
-        show_register()
-    else:
-        show_login()
+    show_login()
     st.stop()
 
 if "result" not in st.session_state:
@@ -498,7 +498,12 @@ if "quote_items" not in st.session_state:
 # NAVBAR
 
 user = st.session_state.user
-nav_cols = st.columns([3, 1, 1, 1, 1])
+
+ADMIN_EMAIL = "vaibhav.chaudhary@tatatel.co.in"
+is_admin = (st.session_state.user.get("email") or "").strip().lower() == ADMIN_EMAIL.strip().lower()
+
+nav_cols = st.columns([3, 1, 1, 1, 1, 1]) if is_admin else st.columns([3, 1, 1, 1, 1])
+
 with nav_cols[0]:
     st.markdown(
         f"<div style='padding-top:8px; font-size:1.1rem; font-weight:800; color:#1B3A6B;'>"
@@ -508,7 +513,7 @@ with nav_cols[0]:
         unsafe_allow_html=True
     )
 with nav_cols[1]:
-    if st.button("📊 Dashboard", use_container_width=True,
+    if st.button("Dashboard", use_container_width=True,
                  type="primary" if st.session_state.page == "dashboard" else "secondary"):
         st.session_state.page = "dashboard"
         st.rerun()
@@ -522,13 +527,31 @@ with nav_cols[3]:
                  type="primary" if st.session_state.page == "cart" else "secondary"):
         st.session_state.page = "cart"
         st.rerun()
-with nav_cols[4]:
-    if st.button("🚪 Logout", use_container_width=True, type="secondary"):
-        st.session_state.logged_in = False
-        st.session_state.user = None
-        st.session_state.page = "login"
-        st.session_state.result = None
-        st.rerun()
+if is_admin:
+    with nav_cols[4]:
+        if st.button("🔐 Admin", use_container_width=True,
+                     type="primary" if st.session_state.page == "admin" else "secondary"):
+            st.session_state.page = "admin"
+            st.rerun()
+    with nav_cols[5]:
+        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+            for key in ["logged_in", "user", "page", "result", "quotation_id",
+                        "last_config", "quote_items", "customer_name", "company_name",
+                        "history_saved_for_qid", "history_view_id", "delete_confirm_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.page = "login"
+            st.rerun()
+else:
+    with nav_cols[4]:
+        if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+            for key in ["logged_in", "user", "page", "result", "quotation_id",
+                        "last_config", "quote_items", "customer_name", "company_name",
+                        "history_saved_for_qid", "history_view_id", "delete_confirm_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.page = "login"
+            st.rerun()
 
 st.markdown("---")
 
@@ -541,6 +564,13 @@ if st.session_state.page == "profile":
 
 if st.session_state.page == "cart":
     show_cart()
+    st.stop()
+
+if st.session_state.page == "admin":
+    if not is_admin:
+        st.error("⛔ Access denied. You are not authorized to view this page.")
+        st.stop()
+    show_admin_panel()
     st.stop()
 
 
@@ -1348,6 +1378,7 @@ if st.session_state.quote_items:
 
     save_current_quotation_history(
         quotation_id=qid,
+        user_email=st.session_state.user.get("email"),
         customer_name=st.session_state.customer_name,
         company_name=st.session_state.company_name,
         quote_items=items,
@@ -1442,6 +1473,7 @@ elif st.session_state.result:
 
     save_current_quotation_history(
         quotation_id=qid,
+        user_email=st.session_state.user.get("email"),
         customer_name=st.session_state.customer_name,
         company_name=st.session_state.company_name,
         quote_items=st.session_state.quote_items,

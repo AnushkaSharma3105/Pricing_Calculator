@@ -27,7 +27,8 @@ def show_cart():
         st.session_state["flash_msg"] = None
         st.session_state["flash_type"] = None
 
-    quotations = fetch_all_quotations()
+    user_email = st.session_state.user.get("email")
+    quotations = fetch_all_quotations(user_email=user_email)
 
     if not quotations:
         st.markdown("""
