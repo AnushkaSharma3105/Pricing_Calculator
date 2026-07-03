@@ -12,7 +12,7 @@ from pricing_engine import (
     PRICING_TIERS, STORAGE_PRICES, BACKUP_PRICES, FIREWALL_PRICES
 )
 from utils import (
-    format_inr, generate_quotation_id,
+    format_inr, generate_quotation_id, get_logo_base64,
     build_summary_dataframe, export_to_csv, export_to_excel,
     build_quote_export_dataframe, export_quote_to_csv, export_quote_to_excel
 )
@@ -297,6 +297,47 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     }
 
+    .ttbs-nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding-top: 2px;
+        min-height: 62px;
+    }
+    .ttbs-logo-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+        border-radius: 12px;
+        padding: 8px 16px;
+        box-shadow: 0 4px 14px rgba(27, 58, 107, 0.14);
+        border: 1px solid rgba(37, 99, 235, 0.12);
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .ttbs-logo-wrap:hover {
+        box-shadow: 0 6px 18px rgba(27, 58, 107, 0.18);
+        transform: translateY(-1px);
+    }
+    .ttbs-logo-wrap img {
+        height: 48px;
+        width: auto;
+        max-width: 220px;
+        object-fit: contain;
+        display: block;
+    }
+    .ttbs-nav-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #1B3A6B;
+        line-height: 1.3;
+    }
+    .ttbs-nav-greeting {
+        font-weight: 400;
+        font-size: 0.95rem;
+        color: #3B5F8F;
+    }
+
     label, p, div { color: #1E3A5F; }
 
     #MainMenu {visibility: hidden;}
@@ -514,11 +555,20 @@ is_admin = (st.session_state.user.get("email") or "").strip().lower() == ADMIN_E
 nav_cols = st.columns([3, 1, 1, 1, 1, 1]) if is_admin else st.columns([3, 1, 1, 1, 1])
 
 with nav_cols[0]:
+    logo_b64 = get_logo_base64()
+    logo_html = (
+        f'<div class="ttbs-logo-wrap">'
+        f'<img src="data:image/png;base64,{logo_b64}" alt="TATA Tele Business Services"/>'
+        f'</div>'
+        if logo_b64 else ""
+    )
     st.markdown(
-        f"<div style='padding-top:8px; font-size:1.1rem; font-weight:800; color:#1B3A6B;'>"
+        f"<div class='ttbs-nav-brand'>"
+        f"{logo_html}"
+        f"<span class='ttbs-nav-title'>"
         f"☁️ CloudQuote &nbsp;|&nbsp; "
-        f"<span style='font-weight:400; font-size:0.95rem;'>Hi, {user['full_name'].split()[0]}!</span>"
-        f"</div>",
+        f"<span class='ttbs-nav-greeting'>Hi, {user['full_name'].split()[0]}!</span>"
+        f"</span></div>",
         unsafe_allow_html=True
     )
 with nav_cols[1]:

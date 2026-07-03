@@ -1,6 +1,22 @@
+import base64
 import pandas as pd
 import io
 from datetime import datetime
+from pathlib import Path
+
+LOGO_PATH = Path(__file__).parent / "assets" / "ttbs_logo.png"
+LOGO_TOP_ROWS = 3  # empty rows inserted above the unchanged quotation template
+LOGO_DISPLAY_HEIGHT_PX = 42  # embedded logo height; width keeps aspect ratio
+
+# Default column widths (chars) used in BOQ exports
+BOQ_COL_WIDTHS = [22, 18, 20, 22, 10, 12, 14, 20, 8, 28, 22]
+
+
+def get_logo_base64():
+    """Return base64-encoded TTBS logo for inline HTML display."""
+    if LOGO_PATH.exists():
+        return base64.b64encode(LOGO_PATH.read_bytes()).decode()
+    return ""
 
 
 def format_inr(amount):
@@ -64,17 +80,98 @@ def export_to_csv(df):
     return df.to_csv(index=False).encode("utf-8")
 
 
+def _prepare_logo_image_bytes():
+    """Resize the shared TTBS logo for crisp embedding (same file as the website)."""
+    if not LOGO_PATH.exists():
+        return None, 0, 0
+
+    try:
+        from PIL import Image
+    except ImportError:
+        return None, 0, 0
+
+    with Image.open(LOGO_PATH) as src:
+        aspect = src.width / src.height
+        display_h = LOGO_DISPLAY_HEIGHT_PX
+        display_w = max(1, int(display_h * aspect))
+        resized = src.convert("RGBA").resize(
+            (display_w, display_h), Image.Resampling.LANCZOS,
+        )
+        buf = io.BytesIO()
+        resized.save(buf, format="PNG", dpi=(96, 96))
+        buf.seek(0)
+        return buf, display_w, display_h
+
+
+def _embed_logo_at_top(xlsx_bytes, sheet_name):
+    """Insert embedded TTBS logo in reserved top rows; template below is untouched."""
+    logo_buf, display_w, display_h = _prepare_logo_image_bytes()
+    if not logo_buf:
+        return xlsx_bytes
+
+    try:
+        from openpyxl import load_workbook
+        from openpyxl.drawing.image import Image as XLImage
+        from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
+        from openpyxl.drawing.xdr import XDRPositiveSize2D
+        from openpyxl.utils.units import pixels_to_EMU
+
+        wb = load_workbook(io.BytesIO(xlsx_bytes))
+        if sheet_name not in wb.sheetnames:
+            return xlsx_bytes
+
+        ws = wb[sheet_name]
+        ws._images.clear()
+
+        total_pts = (display_h + 8) * 72 / 96
+        row_pts = total_pts / LOGO_TOP_ROWS
+        for r in range(LOGO_TOP_ROWS):
+            ws.row_dimensions[r + 1].height = row_pts
+
+        y_pad = max(2, int((total_pts * 96 / 72 - display_h) / 2))
+        img = XLImage(logo_buf)
+        img.anchor = OneCellAnchor(
+            _from=AnchorMarker(
+                col=0,
+                colOff=pixels_to_EMU(8),
+                row=0,
+                rowOff=pixels_to_EMU(y_pad),
+            ),
+            ext=XDRPositiveSize2D(
+                pixels_to_EMU(display_w),
+                pixels_to_EMU(display_h),
+            ),
+        )
+        ws.add_image(img)
+
+        out = io.BytesIO()
+        wb.save(out)
+        return out.getvalue()
+    except Exception:
+        return xlsx_bytes
+
+
+def _reserve_logo_rows(worksheet):
+    """Leave blank rows at the top so the logo never overlaps template content."""
+    for r in range(LOGO_TOP_ROWS):
+        worksheet.set_row(r, 16)
+
+
 def export_to_excel(df, product, flavour, quotation_id):
     """Export dataframe to Excel bytes with formatting"""
     output = io.BytesIO()
+    title_rows = 4
+    data_startrow = LOGO_TOP_ROWS + title_rows
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Quotation", startrow=4)
+        df.to_excel(
+            writer, index=False, sheet_name="Quotation",
+            startrow=data_startrow,
+        )
 
         workbook = writer.book
         worksheet = writer.sheets["Quotation"]
 
-        # Formats
         title_fmt = workbook.add_format({
             "bold": True, "font_size": 16,
             "font_color": "#FFFFFF", "bg_color": "#1B3A6B",
@@ -95,30 +192,32 @@ def export_to_excel(df, product, flavour, quotation_id):
             "num_format": "#,##0.00"
         })
 
-        # Title rows
-        worksheet.merge_range("A1:C1", "PRICE QUOTATION", title_fmt)
-        worksheet.write("A2", f"Quotation ID: {quotation_id}", subtitle_fmt)
-        worksheet.write("A3", f"Product: {product}  |  Flavour: {flavour}", subtitle_fmt)
-        worksheet.write("A4", f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}", subtitle_fmt)
+        _reserve_logo_rows(worksheet)
 
-        # Header row (row 5 = index 4, startrow=4 means headers at row 5)
+        worksheet.merge_range(LOGO_TOP_ROWS, 0, LOGO_TOP_ROWS, 2, "PRICE QUOTATION", title_fmt)
+        worksheet.write(LOGO_TOP_ROWS + 1, 0, f"Quotation ID: {quotation_id}", subtitle_fmt)
+        worksheet.write(LOGO_TOP_ROWS + 2, 0, f"Product: {product}  |  Flavour: {flavour}", subtitle_fmt)
+        worksheet.write(
+            LOGO_TOP_ROWS + 3, 0,
+            f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}",
+            subtitle_fmt,
+        )
+
         for col_num, col_name in enumerate(df.columns):
-            worksheet.write(4, col_num, col_name, header_fmt)
+            worksheet.write(data_startrow, col_num, col_name, header_fmt)
 
-        # Column widths
         worksheet.set_column("A:A", 35)
         worksheet.set_column("B:B", 25)
         worksheet.set_column("C:C", 20)
 
-        # Highlight grand total row
         for row_idx, row in df.iterrows():
             if str(row.get("Component", "")).strip() == "GRAND TOTAL":
-                excel_row = row_idx + 5  # offset: 4 header rows + 1 for startrow
+                excel_row = row_idx + data_startrow + 1
                 worksheet.write(excel_row, 0, "GRAND TOTAL", total_fmt)
                 worksheet.write(excel_row, 1, "", total_fmt)
                 worksheet.write(excel_row, 2, row["Amount (INR)"], total_fmt)
 
-    return output.getvalue()
+    return _embed_logo_at_top(output.getvalue(), "Quotation")
 
 
 def build_quote_export_dataframe(items):
@@ -305,6 +404,9 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             "font_color": "#FFFFFF", "bg_color": "#1B3A6B",
             "align": "center", "valign": "vcenter"
         })
+        subtitle_fmt = workbook.add_format({
+            "bold": True, "font_size": 11, "font_color": "#1B3A6B"
+        })
         header_fmt = workbook.add_format({
             "bold": True, "bg_color": "#1B3A6B",
             "font_color": "#FFFFFF", "border": 1,
@@ -336,26 +438,23 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             "bold": True, "bg_color": "#FFF3CD",
             "font_color": "#856404", "border": 1
         })
-        subtitle_fmt = workbook.add_format({
-            "bold": True, "font_size": 11, "font_color": "#1B3A6B"
-        })
 
-        # Column widths
-        worksheet.set_column("A:A", 22)
-        worksheet.set_column("B:B", 18)
-        worksheet.set_column("C:C", 20)
-        worksheet.set_column("D:D", 22)
-        worksheet.set_column("E:E", 10)
-        worksheet.set_column("F:F", 12)
-        worksheet.set_column("G:G", 14)
-        worksheet.set_column("H:H", 20)
-        worksheet.set_column("I:I", 8)
-        worksheet.set_column("J:J", 35)
-        worksheet.set_column("K:K", 18)
+        boq_col_widths = [22, 18, 20, 22, 10, 12, 14, 20, 8, 28, 22]
+        worksheet.set_column("A:A", boq_col_widths[0])
+        worksheet.set_column("B:B", boq_col_widths[1])
+        worksheet.set_column("C:C", boq_col_widths[2])
+        worksheet.set_column("D:D", boq_col_widths[3])
+        worksheet.set_column("E:E", boq_col_widths[4])
+        worksheet.set_column("F:F", boq_col_widths[5])
+        worksheet.set_column("G:G", boq_col_widths[6])
+        worksheet.set_column("H:H", boq_col_widths[7])
+        worksheet.set_column("I:I", boq_col_widths[8])
+        worksheet.set_column("J:J", boq_col_widths[9])
+        worksheet.set_column("K:K", boq_col_widths[10])
 
-        row = 0
+        _reserve_logo_rows(worksheet)
 
-        # Title
+        row = LOGO_TOP_ROWS
         worksheet.merge_range(row, 0, row, 10, "PRICE QUOTATION", title_fmt)
         row += 1
         worksheet.write(row, 0, f"Quotation ID: {quotation_id}", subtitle_fmt)
@@ -563,4 +662,4 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         worksheet.merge_range(row, 0, row, 9, "GRAND TOTAL", total_label_fmt)
         worksheet.write(row, 10, grand_total, total_fmt)
 
-    return output.getvalue()
+    return _embed_logo_at_top(output.getvalue(), "BOQ")
