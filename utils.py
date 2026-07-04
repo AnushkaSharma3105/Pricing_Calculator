@@ -225,6 +225,7 @@ def build_quote_export_dataframe(items):
     for index, item in enumerate(items, start=1):
         rows.append({
             "S.No": index,
+            "Category": item.get("Category", ""),
             "Product": item.get("Product", ""),
             "Flavour": item.get("Flavour", ""),
             "Element": item.get("Element", ""),
@@ -235,7 +236,9 @@ def build_quote_export_dataframe(items):
             "Storage (GB)": item.get("Storage (GB)", 0),
             "Backup Type": item.get("Backup Type", ""),
             "Backup (GB)": item.get("Backup (GB)", 0),
-            "Firewall": item.get("Firewall", ""),
+            "Firewall Type": item.get("Firewall Type", ""),
+            "Firewall Bandwidth (Mbps)": item.get("Firewall Bandwidth (Mbps)", 0),
+            "Firewall Cost (INR)": item.get("Firewall Cost (INR)", 0.0),
             "Public IPs": item.get("Public IPs", 0),
             "Quantity": item.get("Quantity", 1),
             "vCPU": item.get("vCPU", ""),
@@ -300,10 +303,25 @@ def export_quote_to_csv(df, grand_total=None):
         lines.append(",,,,,,,,,,")
     lines.append("")
 
+    # Firewall
+    lines.append("Firewall,,,,,,,,,,")
+    lines.append("Type,Bandwidth (Mbps),Remark,,,,,,,,Cost (INR)")
+    fw_rows = df[df["Firewall Type"].notna() & (df["Firewall Type"] != "")]
+    if not fw_rows.empty:
+        for _, row in fw_rows.iterrows():
+            lines.append(
+                f"{row.get('Firewall Type','')},{row.get('Firewall Bandwidth (Mbps)',0)},,,,,,,,,"
+                f"{row.get('Firewall Cost (INR)',0)}"
+            )
+    else:
+        lines.append(",,,,,,,,,,")
+    lines.append("")
+
     # VM Section
     lines.append("Vayu Private Cloud")
     lines.append("Element,Hypervisor,Environment,Operating System,vCPU,Memory (GB),Root Disk,Additional Storage (GB),Qty,Remark,Total VM + Disk Price/Month")
-    for _, row in df.iterrows():
+    vm_rows = df[df["Flavour"].notna() & (df["Flavour"] != "")]
+    for _, row in vm_rows.iterrows():
         lines.append(
             f"{row.get('Element','ICS')},{row.get('Hypervisor','Open Stack')},Prod,"
             f"{row.get('Operating System','')},{row.get('vCPU','')},{row.get('RAM (GB)','')},"
@@ -513,6 +531,28 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         row += 1
 
         
+        # SECTION 1B: Firewall
+        
+        row = write_section_header(worksheet, row, "Firewall")
+        fw_headers = ["Type", "Bandwidth (Mbps)", None, None, None, None, None,
+                      None, None, "Remark", "Cost (INR)"]
+        row = write_col_headers(worksheet, row, fw_headers)
+        fw_rows = df[df["Firewall Type"].notna() & (df["Firewall Type"] != "")]
+        if not fw_rows.empty:
+            for _, r2 in fw_rows.iterrows():
+                vals = [
+                    r2.get("Firewall Type", ""),
+                    r2.get("Firewall Bandwidth (Mbps)", 0),
+                    "", "", "", "", "", "", "",
+                    "",
+                    r2.get("Firewall Cost (INR)", 0),
+                ]
+                row = write_data_row(worksheet, row, vals)
+        else:
+            row = write_data_row(worksheet, row, [""] * 11)
+        row += 1
+
+        
         # SECTION 2: Vayu Private Cloud (VM)
         
         row = write_section_header(worksheet, row, "Vayu Private Cloud")
@@ -520,7 +560,8 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                       "vCPU", "Memory (GB)", "Root Disk", "Additional Storage (GB)",
                       "Qty", "Remark", "Total VM + Disk Price/Month"]
         row = write_col_headers(worksheet, row, vm_headers)
-        for _, r2 in df.iterrows():
+        vm_rows = df[df["Flavour"].notna() & (df["Flavour"] != "")]
+        for _, r2 in vm_rows.iterrows():
             vals = [
                 r2.get("Element", "ICS"),
                 r2.get("Hypervisor", "Open Stack"),

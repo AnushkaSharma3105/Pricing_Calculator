@@ -152,7 +152,8 @@ for key, default in [
         ("result", None), ("quotation_id", None), ("last_config", {}),
         ("quote_items", []), ("customer_name", ""), ("company_name", ""),
         ("history_saved_for_qid", None), ("history_view_id", None),
-        ("delete_confirm_id", None), ("preview_result", None), ("show_preview", False)
+        ("delete_confirm_id", None), ("preview_result", None), ("show_preview", False),
+        ("added_signatures", {})
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -1057,7 +1058,7 @@ with st.expander("**🌐 Network & Security Services**", expanded=False):
     # Calculate firewall cost (price per Mbps, based on firewall type selected)
     firewall_cost = 0
     if ns_firewall != "None" and ns_firewall_mbps > 0:
-        firewall_cost = FIREWALL_PRICES.get(ns_firewall, 0) * ns_firewall_mbps
+        firewall_cost = round(FIREWALL_PRICES.get(ns_firewall, 0) * ns_firewall_mbps, 2)
 
     st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
     if ns_firewall != "None":
@@ -1176,47 +1177,34 @@ with st.expander("**🖧 Network Elements**", expanded=False):
         st.markdown("**Network Element**")
         ne_element = st.selectbox(
             "Element",
-            ["None", "Virtual Network", "Firewall"],
+            ["None", "Virtual Network"],
             key="ne_element"
         )
         ne_description = st.text_input(
             "Description",
             value="",
             key="ne_description",
-            placeholder="e.g. Network isolation, Forti firewall HA"
+            placeholder="e.g. Network isolation"
         )
 
     with ne_col2:
         st.markdown("**Quantity & Remark**")
-        if ne_element == "Firewall":
-            ne_unit_options = ["Port", "Gig"]
-        else:
-            ne_unit_options = ["None", "Qty", "Port", "Gig"]
-
-        if "ne_unit" not in st.session_state:
-            st.session_state.ne_unit = "None"
-        if st.session_state.ne_unit not in ne_unit_options:
-            st.session_state.ne_unit = ne_unit_options[0]
-
         ne_unit = st.selectbox(
             "Unit",
-            ne_unit_options,
+            ["None", "Qty", "Port", "Gig"],
             key="ne_unit"
         )
-        ne_qty = 0
-        if ne_element != "None":
-            ne_qty_label = "Quantity" if ne_element == "Virtual Network" else "Bandwidth (Mbps)"
-            ne_qty = st.number_input(
-                ne_qty_label,
-                min_value=0, max_value=100,
-                value=0, step=1,
-                key="ne_qty"
-            )
+        ne_qty = st.number_input(
+            "Quantity",
+            min_value=0, max_value=100,
+            value=0, step=1,
+            key="ne_qty"
+        )
         ne_remark = st.text_input(
             "Remark",
             value="",
             key="ne_remark",
-            placeholder="e.g. BYOF / Included / Customer Scope"
+            placeholder="e.g. Included / Customer Scope"
         )
 
     ne_cost = NETWORK_ELEMENT_PRICES.get(ne_element, 0) if ne_element != "None" else 0
@@ -1363,6 +1351,7 @@ if reset_clicked:
     st.session_state.result = None
     st.session_state.preview_result = None
     st.session_state.show_preview = False
+    st.session_state.added_signatures = {}
     st.session_state.quotation_id = generate_quotation_id()
     st.session_state.last_config = {}
     st.session_state.quote_items = []
@@ -1502,65 +1491,195 @@ if calculate_clicked:
                 )
 
         if result:
-            # Add additional services cost to grand total
             vm_grand_total = result.get("Grand Total", 0)
-            combined_total = vm_grand_total + total_additional
             result["Additional Services Cost"] = round(total_additional, 2)
-            result["Grand Total"] = round(combined_total, 2)
+            result["Grand Total"] = round(vm_grand_total + total_additional, 2)
 
             st.session_state.result = result
             st.session_state.quotation_id = st.session_state.quotation_id or generate_quotation_id()
 
-            item = {
-                "Product": product,
-                "Flavour": flavour,
-                "Element": config.get("Element", "ICS"),
-                "Hypervisor": config.get("Hypervisor", "Open Stack"),
-                "Operating System": config.get("Operating System", "N/A"),
-                "Pricing Tier": config.get("Pricing Tier", "N/A"),
-                "Storage Type": config.get("Storage Type", "None"),
-                "Storage (GB)": config.get("Storage (GB)", 0),
-                "Backup Type": config.get("Backup Type", "None"),
-                "Backup (GB)": config.get("Backup (GB)", 0),
-                "Public IPs": config.get("Public IPs", 0),
-                "Quantity": result.get("Quantity", 1),
-                "vCPU": specs.get("vCPU", ""),
-                "RAM (GB)": specs.get("RAM (GB)", ""),
-                "Network Element": ns_element if ns_element != "None" else "",
-                "Network Feature": ns_feature if ns_feature != "None" else "",
-                "Network Sub Type": ns_subtype if ns_subtype != "None" else "",
-                "Bandwidth (Mbps)": ns_bandwidth_mbps,
-                "Network Cost (INR)": round(ns_cost, 2),
-                "Firewall Type": ns_firewall if ns_firewall != "None" else "",
-                "Firewall Bandwidth (Mbps)": ns_firewall_mbps,
-                "Firewall Cost (INR)": round(firewall_cost, 2),
-                "License Element": lic_element if lic_element != "None" else "",
-                "License Sub Type": lic_subtype if lic_subtype != "None" else "",
-                "License Qty": lic_qty,
-                "License Cost (INR)": round(lic_cost, 2),
-                "Backup Storage Model": bk_model if bk_model != "None" else "",
-                "Backup Storage (GB)": bk_qty,
-                "Backup Storage Cost (INR)": round(bk_cost, 2),
-                "Network Element Type": ne_element if ne_element != "None" else "",
-                "Network Element Cost (INR)": round(ne_cost, 2),
-                "Management Type": mg_element if mg_element != "None" else "",
-                "Management Qty": mg_qty,
-                "Management Cost (INR)": round(mg_cost, 2),
-                "Misc Element": mi_element if mi_element != "None" else "",
-                "Misc Qty": mi_qty,
-                "Misc Cost (INR)": round(mi_cost, 2),
-                "Additional Services Total (INR)": round(total_additional, 2),
-                "Line Total (INR)": round(combined_total, 2),
-            }
-            st.session_state.quote_items.append(item)
-            st.session_state.last_config = {
-                "product": product,
-                "flavour": flavour,
-                "specs": specs,
-                "config": config,
-            }
-            st.markdown('<div class="success-banner">✅ Price calculated and added to the quote list!</div>',
-                        unsafe_allow_html=True)
+            def _blank_row():
+                return {
+                    "Category": "", "_bucket": "", "_signature": None,
+                    "Product": "", "Flavour": "", "Element": "", "Hypervisor": "",
+                    "Operating System": "", "Pricing Tier": "",
+                    "Storage Type": "", "Storage (GB)": 0,
+                    "Backup Type": "", "Backup (GB)": 0,
+                    "Public IPs": 0, "Quantity": "", "vCPU": "", "RAM (GB)": "",
+                    "Network Element": "", "Network Feature": "", "Network Sub Type": "",
+                    "Bandwidth (Mbps)": 0, "Network Cost (INR)": 0.0,
+                    "Firewall Type": "", "Firewall Bandwidth (Mbps)": 0, "Firewall Cost (INR)": 0.0,
+                    "License Element": "", "License Sub Type": "", "License Qty": 0, "License Cost (INR)": 0.0,
+                    "Backup Storage Model": "", "Backup Storage (GB)": 0, "Backup Storage Cost (INR)": 0.0,
+                    "Network Element Type": "", "Network Element Cost (INR)": 0.0,
+                    "Management Type": "", "Management Qty": 0, "Management Cost (INR)": 0.0,
+                    "Misc Element": "", "Misc Qty": 0, "Misc Cost (INR)": 0.0,
+                    "Line Total (INR)": 0.0,
+                }
+
+            added_sigs = st.session_state.added_signatures
+            new_rows = []
+            added_labels = []
+
+            # ── VM Configuration ──
+            vm_signature = (product, flavour, quantity, tuple(sorted(config.items())))
+            if vm_signature not in added_sigs.get("VM", []):
+                row = _blank_row()
+                row.update({
+                    "Category": "VM Configuration", "_bucket": "VM", "_signature": vm_signature,
+                    "Product": product,
+                    "Flavour": flavour,
+                    "Element": config.get("Element", "ICS"),
+                    "Hypervisor": config.get("Hypervisor", "Open Stack"),
+                    "Operating System": config.get("Operating System", "N/A"),
+                    "Pricing Tier": config.get("Pricing Tier", "N/A"),
+                    "Storage Type": config.get("Storage Type", "None"),
+                    "Storage (GB)": config.get("Storage (GB)", 0),
+                    "Backup Type": config.get("Backup Type", "None"),
+                    "Backup (GB)": config.get("Backup (GB)", 0),
+                    "Public IPs": config.get("Public IPs", 0),
+                    "Quantity": quantity,
+                    "vCPU": specs.get("vCPU", ""),
+                    "RAM (GB)": specs.get("RAM (GB)", ""),
+                    "Line Total (INR)": round(vm_grand_total, 2),
+                })
+                new_rows.append(row)
+                added_sigs.setdefault("VM", []).append(vm_signature)
+                added_labels.append("VM Configuration")
+
+            # ── Network / Internet ──
+            if ns_element != "None" and ns_bandwidth_mbps > 0 and ns_qty > 0:
+                net_signature = (ns_element, ns_feature, ns_subtype, ns_bandwidth_mbps, ns_qty)
+                if net_signature not in added_sigs.get("Network", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": "Network / Internet", "_bucket": "Network", "_signature": net_signature,
+                        "Network Element": ns_element,
+                        "Network Feature": ns_feature if ns_feature != "None" else "",
+                        "Network Sub Type": ns_subtype if ns_subtype != "None" else "",
+                        "Bandwidth (Mbps)": ns_bandwidth_mbps,
+                        "Network Cost (INR)": round(ns_cost, 2),
+                        "Line Total (INR)": round(ns_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("Network", []).append(net_signature)
+                    added_labels.append("Network / Internet")
+
+            # ── Firewall ──
+            if ns_firewall != "None" and ns_firewall_mbps > 0:
+                fw_signature = (ns_firewall, ns_firewall_mbps)
+                if fw_signature not in added_sigs.get("Firewall", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": f"Firewall ({ns_firewall_mbps} Mbps)", "_bucket": "Firewall", "_signature": fw_signature,
+                        "Firewall Type": ns_firewall,
+                        "Firewall Bandwidth (Mbps)": ns_firewall_mbps,
+                        "Firewall Cost (INR)": round(firewall_cost, 2),
+                        "Line Total (INR)": round(firewall_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("Firewall", []).append(fw_signature)
+                    added_labels.append(f"Firewall ({ns_firewall_mbps} Mbps)")
+
+            # ── Software & Licenses ──
+            if lic_subtype != "None" and lic_qty > 0:
+                lic_signature = (lic_element, lic_subtype, lic_qty)
+                if lic_signature not in added_sigs.get("License", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": "License", "_bucket": "License", "_signature": lic_signature,
+                        "License Element": lic_element if lic_element != "None" else "",
+                        "License Sub Type": lic_subtype,
+                        "License Qty": lic_qty,
+                        "License Cost (INR)": round(lic_cost, 2),
+                        "Line Total (INR)": round(lic_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("License", []).append(lic_signature)
+                    added_labels.append("License")
+
+            # ── Backup Storage ──
+            if bk_model != "None" and bk_qty > 0:
+                bk_signature = (bk_model, bk_qty)
+                if bk_signature not in added_sigs.get("Backup Storage", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": "Backup Storage", "_bucket": "Backup Storage", "_signature": bk_signature,
+                        "Backup Storage Model": bk_model,
+                        "Backup Storage (GB)": bk_qty,
+                        "Backup Storage Cost (INR)": round(bk_cost, 2),
+                        "Line Total (INR)": round(bk_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("Backup Storage", []).append(bk_signature)
+                    added_labels.append("Backup Storage")
+
+            # ── Network Element ──
+            if ne_element != "None":
+                ne_signature = (ne_element, ne_qty)
+                if ne_signature not in added_sigs.get("Network Element", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": "Network Element", "_bucket": "Network Element", "_signature": ne_signature,
+                        "Network Element Type": ne_element,
+                        "Network Element Cost (INR)": round(ne_cost, 2),
+                        "Line Total (INR)": round(ne_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("Network Element", []).append(ne_signature)
+                    added_labels.append("Network Element")
+
+            # ── Management Services ──
+            if mg_element != "None" and mg_qty > 0:
+                mg_signature = (mg_element, mg_qty)
+                if mg_signature not in added_sigs.get("Management", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": "Management", "_bucket": "Management", "_signature": mg_signature,
+                        "Management Type": mg_element,
+                        "Management Qty": mg_qty,
+                        "Management Cost (INR)": round(mg_cost, 2),
+                        "Line Total (INR)": round(mg_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("Management", []).append(mg_signature)
+                    added_labels.append("Management")
+
+            # ── Miscellaneous ──
+            if mi_element != "None" and mi_qty > 0:
+                mi_signature = (mi_element, mi_qty, mi_price_per_unit)
+                if mi_signature not in added_sigs.get("Misc", []):
+                    row = _blank_row()
+                    row.update({
+                        "Category": "Miscellaneous", "_bucket": "Misc", "_signature": mi_signature,
+                        "Misc Element": mi_element,
+                        "Misc Qty": mi_qty,
+                        "Misc Cost (INR)": round(mi_cost, 2),
+                        "Line Total (INR)": round(mi_cost, 2),
+                    })
+                    new_rows.append(row)
+                    added_sigs.setdefault("Misc", []).append(mi_signature)
+                    added_labels.append("Miscellaneous")
+
+            st.session_state.added_signatures = added_sigs
+
+            if new_rows:
+                st.session_state.quote_items.extend(new_rows)
+                st.session_state.last_config = {
+                    "product": product,
+                    "flavour": flavour,
+                    "specs": specs,
+                    "config": config,
+                }
+                st.markdown(
+                    f'<div class="success-banner">✅ Added to quote: {", ".join(added_labels)}</div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    '<div class="success-banner">ℹ️ No new items to add — this configuration is already in your quote.</div>',
+                    unsafe_allow_html=True
+                )
         else:
             st.markdown('<div class="error-banner">❌ Could not calculate price. Please check your selections.</div>',
                         unsafe_allow_html=True)
@@ -1601,6 +1720,7 @@ if st.session_state.quote_items:
     st.markdown("**📦 Added Configurations**")
     quote_df = pd.DataFrame(items)
     display_cols = [
+        "Category",
         "Product", "Flavour", "Element", "Hypervisor",
         "Operating System", "Pricing Tier",
         "Storage Type", "Storage (GB)", "Backup Type", "Backup (GB)",
@@ -1612,14 +1732,25 @@ if st.session_state.quote_items:
         "Network Element Type", "Network Element Cost (INR)",
         "Management Type", "Management Qty", "Management Cost (INR)",
         "Misc Element", "Misc Qty", "Misc Cost (INR)",
-        "Additional Services Total (INR)", "Line Total (INR)"
+        "Line Total (INR)"
     ]
     display_cols = [c for c in display_cols if c in quote_df.columns]
+
+    ALWAYS_SHOW_COLS = {"Category", "Line Total (INR)", "Product", "Flavour"}
+
+    def _col_has_data(col_name):
+        series = quote_df[col_name]
+        return series.apply(
+            lambda v: (isinstance(v, (int, float)) and v != 0)
+            or (isinstance(v, str) and v.strip() not in ("", "None"))
+        ).any()
+
+    display_cols = [c for c in display_cols if c in ALWAYS_SHOW_COLS or _col_has_data(c)]
     st.dataframe(quote_df[display_cols], use_container_width=True, hide_index=True)
 
     with st.expander("Remove item from quote"):
         remove_options = [
-            f"{index + 1}. {item['Product']} {item['Flavour']} — {format_inr(item['Line Total (INR)'])}"
+            f"{index + 1}. {item.get('Category', 'Item')} — {format_inr(item.get('Line Total (INR)', 0))}"
             for index, item in enumerate(items)
         ]
         selected_remove = st.selectbox(
@@ -1629,7 +1760,13 @@ if st.session_state.quote_items:
         )
         if st.button("Remove selected configuration", type="secondary"):
             remove_index = remove_options.index(selected_remove)
-            st.session_state.quote_items.pop(remove_index)
+            removed_item = st.session_state.quote_items.pop(remove_index)
+            bucket = removed_item.get("_bucket")
+            sig = removed_item.get("_signature")
+            if bucket and sig is not None:
+                bucket_list = st.session_state.added_signatures.get(bucket, [])
+                if sig in bucket_list:
+                    bucket_list.remove(sig)
             st.rerun()
 
     if st.button("Clear quote list", type="secondary"):
@@ -1637,6 +1774,7 @@ if st.session_state.quote_items:
         st.session_state.result = None
         st.session_state.preview_result = None
         st.session_state.show_preview = False
+        st.session_state.added_signatures = {}
         st.rerun()
 
     st.markdown("---")
