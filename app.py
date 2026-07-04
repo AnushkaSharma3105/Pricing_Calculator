@@ -174,61 +174,102 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    div.stButton > button[kind="secondary"] {
-        color: #1B3A6B !important;
-        font-weight: 600 !important;
-        background-color: rgba(255, 255, 255, 0.85) !important;
-        border: 1.5px solid #2563EB !important;
-        outline: none !important;
-        box-shadow: none !important;
+    div.stButton > button,
+    div.stButton button,
+    div[data-testid="stButton"] > button,
+    div[data-testid="stButton"] button {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        min-width: 180px !important;
+        width: auto !important;
+        max-width: 280px !important;
+        box-sizing: border-box !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 28px !important;
+        height: 52px !important;
+        border-radius: 18px !important;
+        margin: 0 auto !important;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease !important;
     }
+
+    div.stButton,
+    div[data-testid="stButton"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        min-height: 52px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    div.stButton > button,
+    div.stButton button,
+    div[data-testid="stButton"] > button,
+    div[data-testid="stButton"] button {
+        position: relative !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 0 28px !important;
+        line-height: 1.2 !important;
+    }
+
+    div.stButton > button p,
+    div.stButton button p,
+    div[data-testid="stButton"] > button p,
+    div[data-testid="stButton"] button p {
+        white-space: nowrap !important;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    div.stButton > button[kind="secondary"],
+    div.stButton > button[kind="secondaryFormSubmit"],
+    div[data-testid="stButton"] > button[kind="secondary"],
+    div[data-testid="stButton"] > button[kind="secondaryFormSubmit"] {
+        background: rgba(255,255,255,0.98) !important;
+        border: 1px solid rgba(37, 99, 235, 0.35) !important;
+        color: #1B3A6B !important;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08) !important;
+        letter-spacing: 0.02em !important;
+    }
+
+    div.stButton > button[kind="secondary"]:hover,
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background: #f3f8ff !important;
+        color: #1B3A6B !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 18px 32px rgba(15, 23, 42, 0.14) !important;
+        border-color: #1D4ED8 !important;
+    }
+
+    div.stButton > button[kind="primary"],
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(90deg, #2563EB 0%, #1D4ED8 100%) !important;
+        color: white !important;
+        border: 1px solid transparent !important;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16) !important;
+    }
+
+    div.stButton > button[kind="primary"]:hover,
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.2) !important;
+    }
+
+    div.stButton > button[kind="secondary"],
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        min-width: 170px !important;
+    }
+
     div.stButton > button[kind="secondary"] p,
-    div.stButton > button[kind="secondary"] div { color: #1B3A6B !important; }
-    div.stButton > button[kind="secondary"]:hover {
-        background-color: #2563EB !important;
-        color: white !important;
-        border-color: #2563EB !important;
-    }
-    div.stButton > button[kind="secondary"]:focus,
-    div.stButton > button[kind="secondary"]:focus-visible,
-    div.stButton > button[kind="secondary"]:active {
-        outline: none !important;
-        box-shadow: none !important;
-        border: 1.5px solid #2563EB !important;
-    }
-
-    div[data-testid="stDownloadButton"] > button {
-        color: #1B3A6B !important;
-        font-weight: 600 !important;
-        background-color: rgba(255, 255, 255, 0.85) !important;
-        border: 1.5px solid #2563EB !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-    div[data-testid="stDownloadButton"] > button p,
-    div[data-testid="stDownloadButton"] > button div { color: #1B3A6B !important; }
-    div[data-testid="stDownloadButton"] > button:hover {
-        background-color: #2563EB !important;
-        color: white !important;
-        border-color: #2563EB !important;
-    }
-    
-    div[data-testid="stDownloadButton"] > button:focus,
-    div[data-testid="stDownloadButton"] > button:focus-visible,
-    div[data-testid="stDownloadButton"] > button:active {
-        outline: none !important;
-        box-shadow: none !important;
-        border: 1.5px solid #2563EB !important;
-    }
-
-    /* Force all buttons to keep their label on a single line */
-    div.stButton > button {
-        white-space: nowrap !important;
-        overflow: visible !important;
-        min-width: fit-content !important;
-    }
-    div.stButton > button p {
-        white-space: nowrap !important;
+    div[data-testid="stButton"] > button[kind="secondary"] p {
+        color: inherit !important;
     }
 
     .main {
@@ -1323,11 +1364,11 @@ st.markdown("---")
 
 # BUTTONS ROW
 
-btn_col1, btn_col2, btn_col3 = st.columns([1.6, 1.3, 1])
+btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1], gap="large")
 
 with btn_col1:
     preview_clicked = st.button(
-        "Price Summary",
+        "📊 Price Summary",
         type="secondary",
         use_container_width=True,
         help="Preview the price of each selected item before finalizing the quote"
