@@ -1188,17 +1188,30 @@ with st.expander("**🖧 Network Elements**", expanded=False):
 
     with ne_col2:
         st.markdown("**Quantity & Remark**")
+        if ne_element == "Firewall":
+            ne_unit_options = ["Port", "Gig"]
+        else:
+            ne_unit_options = ["None", "Qty", "Port", "Gig"]
+
+        if "ne_unit" not in st.session_state:
+            st.session_state.ne_unit = "None"
+        if st.session_state.ne_unit not in ne_unit_options:
+            st.session_state.ne_unit = ne_unit_options[0]
+
         ne_unit = st.selectbox(
             "Unit",
-            ["None", "Qty", "Port", "Gig"],
+            ne_unit_options,
             key="ne_unit"
         )
-        ne_qty = st.number_input(
-            "Quantity",
-            min_value=0, max_value=100,
-            value=0, step=1,
-            key="ne_qty"
-        )   
+        ne_qty = 0
+        if ne_element != "None":
+            ne_qty_label = "Quantity" if ne_element == "Virtual Network" else "Bandwidth (Mbps)"
+            ne_qty = st.number_input(
+                ne_qty_label,
+                min_value=0, max_value=100,
+                value=0, step=1,
+                key="ne_qty"
+            )
         ne_remark = st.text_input(
             "Remark",
             value="",
