@@ -12,17 +12,42 @@ def show_login():
     st.markdown(f"""
     <style>
     .top-left-logo {{
-        position: fixed;
-        top: 15px;
-        left: 20px;
-        z-index: 999;
+        position: fixed !important;
+        top: 18px !important;
+        left: 18px !important;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        backdrop-filter: blur(16px);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }}
+    .top-left-logo:hover {{
+        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.14);
     }}
     .top-left-logo img {{
-        height: 40px;
+        height: 56px;
+        width: auto;
+        display: block;
+    }}
+    .top-left-logo .brand-text {{
+        font-family: Inter, system-ui, sans-serif;
+        color: #0F172A;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
     }}
     </style>
     <div class="top-left-logo">
         <img src="data:image/png;base64,{logo_base64}">
+        <div class="brand-text">CloudQuote</div>
     </div>
     """, unsafe_allow_html=True)
 
