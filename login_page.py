@@ -11,18 +11,43 @@ def show_login():
     logo_base64 = get_base64_image("assets/ttbs_logo.png")
     st.markdown(f"""
     <style>
-    .top-left-logo {{
+    .top-left-logo {
         position: fixed;
-        top: 15px;
-        left: 20px;
+        top: 18px;
+        left: 18px;
         z-index: 999;
-    }}
-    .top-left-logo img {{
-        height: 40px;
-    }}
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 18px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.14);
+        border: 1px solid rgba(148, 163, 184, 0.20);
+        backdrop-filter: blur(18px);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .top-left-logo:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.16);
+    }
+    .top-left-logo img {
+        height: 82px;
+        width: auto;
+        display: block;
+    }
+    .top-left-logo .brand-text {
+        font-family: Inter, system-ui, sans-serif;
+        color: #0F172A;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
     </style>
     <div class="top-left-logo">
         <img src="data:image/png;base64,{logo_base64}">
+        <div class="brand-text">CloudQuote</div>
     </div>
     """, unsafe_allow_html=True)
 
