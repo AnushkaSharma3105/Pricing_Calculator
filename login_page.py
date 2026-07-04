@@ -1,7 +1,31 @@
 import streamlit as st
+import base64
 from auth import login_user, get_security_question, reset_password_with_answer
 
+def get_base64_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
 def show_login():
+    
+    logo_base64 = get_base64_image("assets/ttbs_logo.png")
+    st.markdown(f"""
+    <style>
+    .top-left-logo {{
+        position: fixed;
+        top: 15px;
+        left: 20px;
+        z-index: 999;
+    }}
+    .top-left-logo img {{
+        height: 40px;
+    }}
+    </style>
+    <div class="top-left-logo">
+        <img src="data:image/png;base64,{logo_base64}">
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("""
     <div style="max-width:420px; margin:60px auto 0 auto;">
     <div class="card" style="padding:36px;">
