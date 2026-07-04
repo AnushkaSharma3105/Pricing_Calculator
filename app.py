@@ -777,11 +777,7 @@ if product == "Vayu Cloud":
             key="vayu_backup_gb"
         ) if backup_type != "None" else 0
 
-        firewall_type = st.selectbox(
-            "Firewall",
-            list(FIREWALL_PRICES.keys()),
-            key="vayu_firewall"
-        )
+        
 
         public_ips = st.number_input(
             "No. of Public IPs",
@@ -799,7 +795,6 @@ if product == "Vayu Cloud":
         "Storage (GB)": storage_gb,
         "Backup Type": backup_type,
         "Backup (GB)": backup_gb,
-        "Firewall": firewall_type,
         "Public IPs": public_ips,
     }
 
@@ -1020,11 +1015,39 @@ with st.expander("**🌐 Network & Security Services**", expanded=False):
             placeholder="e.g. Unlimited Download & Upload"
         )
 
+    st.markdown("---")
+    st.markdown("**🔥 Firewall**")
+    fw_col1, fw_col2 = st.columns(2)
+
+    with fw_col1:
+        ns_firewall = st.selectbox(
+            "Firewall Type",
+            list(FIREWALL_PRICES.keys()),
+            key="ns_firewall"
+        )
+
+    with fw_col2:
+        ns_firewall_mbps = st.number_input(
+            "Firewall Bandwidth (Mbps)",
+            min_value=0, max_value=100000,
+            value=0, step=100,
+            key="ns_firewall_mbps",
+            help="Enter the bandwidth this firewall should handle"
+        ) if ns_firewall != "None" else 0
+
     # Calculate internet cost
     ns_cost = 0
     if ns_element != "None" and ns_bandwidth_mbps > 0 and ns_qty > 0:
         ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ns_bandwidth_mbps * ns_qty
+
+    # Calculate firewall cost (price per Mbps, based on firewall type selected)
+    firewall_cost = 0
+    if ns_firewall != "None" and ns_firewall_mbps > 0:
+        firewall_cost = FIREWALL_PRICES.get(ns_firewall, 0) * ns_firewall_mbps
+
     st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
+    if ns_firewall != "None":
+        st.info(f"Estimated Firewall Cost: {format_inr(firewall_cost)} / month")
 
 with st.expander("**🔐 Software & Licenses**", expanded=False):
     lic_col1, lic_col2 = st.columns(2)
@@ -1281,7 +1304,7 @@ with st.expander("**📦 Miscellaneous Items**", expanded=False):
     st.info(f"Estimated Miscellaneous Cost: {format_inr(mi_cost)} / month")
 
 # Total additional services cost
-total_additional = ns_cost + lic_cost + bk_cost + ne_cost + mg_cost + mi_cost
+total_additional = ns_cost + firewall_cost + lic_cost + bk_cost + ne_cost + mg_cost + mi_cost
 if total_additional > 0:
     st.markdown(f"""
     <div style="background: rgba(255,255,255,0.85); border-radius:10px;
@@ -1323,7 +1346,7 @@ if reset_clicked:
     # Reset Step 3 additional services
     keys_to_reset = [
         "ns_element", "ns_feature", "ns_subtype", "ns_bandwidth",
-        "ns_unit", "ns_qty", "ns_remark",
+        "ns_unit", "ns_qty", "ns_remark", "ns_firewall", "ns_firewall_mbps",
         "lic_element", "lic_subtype", "lic_description",
         "lic_unit", "lic_qty", "lic_remark",
         "bk_element", "bk_make", "bk_model", "bk_storage_config",
@@ -1359,7 +1382,7 @@ if calculate_clicked:
                     flavour, os_type, pricing_tier, quantity,
                     storage_type if storage_type != "None" else "None",
                     storage_gb, backup_type, backup_gb,
-                    firewall_type, public_ips
+                    "None", public_ips
                 )
             elif product == "Hana Grid":
                 result = calculate_hana_price(
@@ -1395,7 +1418,6 @@ if calculate_clicked:
                 "Storage (GB)": config.get("Storage (GB)", 0),
                 "Backup Type": config.get("Backup Type", "None"),
                 "Backup (GB)": config.get("Backup (GB)", 0),
-                "Firewall": config.get("Firewall", "None"),
                 "Public IPs": config.get("Public IPs", 0),
                 "Quantity": result.get("Quantity", 1),
                 "vCPU": specs.get("vCPU", ""),
@@ -1405,6 +1427,9 @@ if calculate_clicked:
                 "Network Sub Type": ns_subtype if ns_subtype != "None" else "",
                 "Bandwidth (Mbps)": ns_bandwidth_mbps,
                 "Network Cost (INR)": round(ns_cost, 2),
+                "Firewall Type": ns_firewall if ns_firewall != "None" else "",
+                "Firewall Bandwidth (Mbps)": ns_firewall_mbps,
+                "Firewall Cost (INR)": round(firewall_cost, 2),
                 "License Element": lic_element if lic_element != "None" else "",
                 "License Sub Type": lic_subtype if lic_subtype != "None" else "",
                 "License Qty": lic_qty,
@@ -1475,8 +1500,9 @@ if st.session_state.quote_items:
         "Product", "Flavour", "Element", "Hypervisor",
         "Operating System", "Pricing Tier",
         "Storage Type", "Storage (GB)", "Backup Type", "Backup (GB)",
-        "Firewall", "Public IPs", "Quantity", "vCPU", "RAM (GB)",
+        "Public IPs", "Quantity", "vCPU", "RAM (GB)",
         "Network Element", "Network Feature", "Network Sub Type", "Bandwidth (Mbps)", "Network Cost (INR)",
+        "Firewall Type", "Firewall Bandwidth (Mbps)", "Firewall Cost (INR)",
         "License Element", "License Sub Type", "License Qty", "License Cost (INR)",
         "Backup Storage Model", "Backup Storage (GB)", "Backup Storage Cost (INR)",
         "Network Element Type", "Network Element Cost (INR)",
