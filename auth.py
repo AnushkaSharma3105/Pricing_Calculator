@@ -126,6 +126,27 @@ def delete_account(user_id, password):
     conn.close()
     return True, "Account deleted."
 
+
+def admin_delete_account(email, password):
+    init_db()
+    email = email.strip().lower()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id, password_hash FROM users WHERE email = ?", (email,))
+    row = c.fetchone()
+    if row is None:
+        conn.close()
+        return False, "No account found with this email."
+    user_id, pw_hash = row
+    if not bcrypt.checkpw(password.encode(), pw_hash.encode()):
+        conn.close()
+        return False, "Incorrect password for this account."
+    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return True, f"Account for {email} has been deleted."
+
+
 def get_security_question(email):
     init_db()
     email = email.strip().lower()
