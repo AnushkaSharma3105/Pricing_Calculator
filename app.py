@@ -220,14 +220,35 @@ st.markdown("""
         border: 1.5px solid #2563EB !important;
     }
 
-    /* Force all buttons to keep their label on a single line */
-    div.stButton > button {
+    /* Force all buttons to keep their label on a single horizontal line */
+    div.stButton > button,
+    div[data-testid="stButton"] > button,
+    div[data-testid="stButton"] button,
+    button[kind="secondary"],
+    button[kind="primary"] {
         white-space: nowrap !important;
-        overflow: visible !important;
-        min-width: fit-content !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        min-width: 180px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 18px !important;
+        height: 44px !important;
+        border-radius: 12px !important;
     }
-    div.stButton > button p {
+    div.stButton > button p,
+    div[data-testid="stButton"] > button p,
+    div[data-testid="stButton"] button p,
+    button[kind="secondary"] p,
+    button[kind="primary"] p {
         white-space: nowrap !important;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
     }
 
     .main {
@@ -353,6 +374,130 @@ st.markdown("""
 
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+
+    /* Price Summary header card */
+    .price-summary-header {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px 22px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        border-left: 5px solid #2563EB;
+        margin-bottom: 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .price-summary-header .ps-icon {
+        font-size: 28px;
+        line-height: 1;
+    }
+    .price-summary-header .ps-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.1;
+        margin: 0;
+    }
+    .price-summary-header .ps-badge {
+        background: #EEF2FF;
+        color: #2563EB;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 13px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .price-summary-header .ps-label-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    @media (max-width: 768px) {
+        .price-summary-header {
+            flex-wrap: wrap;
+            padding: 14px 16px;
+            gap: 10px;
+        }
+        .price-summary-header .ps-title {
+            font-size: 20px;
+        }
+    }
+
+    .price-summary-table-card {
+        background: #ffffff;
+        border-radius: 0 0 12px 12px;
+        padding: 0 0 18px 0;
+        box-shadow: 0 6px 18px rgba(11, 63, 122, 0.04);
+        margin-bottom: 14px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .price-summary-table-card .stDataFrameContainer {
+        border-radius: 0 0 12px 12px;
+        overflow: hidden;
+    }
+
+    /* Ensure the Price Summary button renders inline in its column */
+    div[data-testid="stButton"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        min-height: 56px !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="secondary"],
+    div[data-testid="stButton"] > button[kind="primary"] {
+        display: inline-flex !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        justify-content: center !important;
+        align-items: center !important;
+        min-height: 56px !important;
+        border-radius: 999px !important;
+        padding: 0 26px !important;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12) !important;
+        transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border: 1px solid rgba(37, 99, 235, 0.24) !important;
+        color: #1B3A6B !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background: #f8fbff !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.16) !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(90deg, #2563EB 0%, #1D4ED8 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid transparent !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(90deg, #1D4ED8 0%, #2563EB 100%) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18) !important;
+    }
+
+    div[data-testid="stButton"] > button[kind="secondary"] p,
+    div[data-testid="stButton"] > button[kind="primary"] p {
+        white-space: nowrap !important;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
 
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] [data-testid="stSelectboxValue"],
@@ -1335,11 +1480,11 @@ st.markdown("---")
 
 # BUTTONS ROW
 
-btn_col1, btn_col2, btn_col3 = st.columns([1.6, 1.3, 1])
+spacer_left, btn_col1, btn_col2, btn_col3, spacer_right = st.columns([0.35, 1.05, 1.05, 1.05, 0.35], gap="small")
 
 with btn_col1:
     preview_clicked = st.button(
-        "Price Summary",
+        "📊 Price Summary",
         type="secondary",
         use_container_width=True,
         help="Preview the price of each selected item before finalizing the quote"
@@ -1450,10 +1595,25 @@ if preview_clicked:
 
 if st.session_state.show_preview and st.session_state.preview_result:
     st.markdown("---")
-    st.markdown('<div class="section-title">📊 Individual Price Summary (Preview)</div>',
-                unsafe_allow_html=True)
+    st.markdown("""
+    <div class="price-summary-header">
+      <div class="ps-icon">📊</div>
+      <div class="ps-label-group">
+        <div class="ps-title">Price Summary</div>
+        <div class="ps-badge">Preview</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     preview_df = pd.DataFrame(st.session_state.preview_result["rows"])
+    st.markdown("""
+    <div class="price-summary-table-card">
+    """, unsafe_allow_html=True)
     st.dataframe(preview_df, use_container_width=True, hide_index=True)
+    st.markdown("""
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown(f"""
     <div style="background: rgba(255,255,255,0.85); border-radius:10px;
                 padding:14px 20px; border-left: 4px solid #2563EB; margin-top:8px;">
