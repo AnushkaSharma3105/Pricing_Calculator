@@ -24,9 +24,7 @@ BACKUP_PRICES = {
 
 FIREWALL_PRICES = {
     "None": 0,
-    "Basic": 2000,
-    "Standard": 5000,
-    "Advanced": 10000,
+    "Basic": 62.677995,
 }
 
 PUBLIC_IP_PRICE = 500  # per IP per month
