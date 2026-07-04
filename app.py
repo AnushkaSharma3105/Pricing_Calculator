@@ -152,7 +152,7 @@ for key, default in [
         ("result", None), ("quotation_id", None), ("last_config", {}),
         ("quote_items", []), ("customer_name", ""), ("company_name", ""),
         ("history_saved_for_qid", None), ("history_view_id", None),
-        ("delete_confirm_id", None)
+        ("delete_confirm_id", None), ("preview_result", None), ("show_preview", False)
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -211,12 +211,23 @@ st.markdown("""
         color: white !important;
         border-color: #2563EB !important;
     }
+    
     div[data-testid="stDownloadButton"] > button:focus,
     div[data-testid="stDownloadButton"] > button:focus-visible,
     div[data-testid="stDownloadButton"] > button:active {
         outline: none !important;
         box-shadow: none !important;
         border: 1.5px solid #2563EB !important;
+    }
+
+    /* Force all buttons to keep their label on a single line */
+    div.stButton > button {
+        white-space: nowrap !important;
+        overflow: visible !important;
+        min-width: fit-content !important;
+    }
+    div.stButton > button p {
+        white-space: nowrap !important;
     }
 
     .main {
@@ -525,6 +536,9 @@ st.markdown("""
         color: #1B3A6B !important;
     }
 
+
+            
+    
 </style>
 """, unsafe_allow_html=True)
 
@@ -1308,9 +1322,17 @@ st.markdown("---")
 
 # BUTTONS ROW
 
-btn_col1, btn_col2, btn_col3 = st.columns([2, 1, 1])
+btn_col1, btn_col2, btn_col3 = st.columns([1.6, 1.3, 1])
 
 with btn_col1:
+    preview_clicked = st.button(
+        "Price Summary",
+        type="secondary",
+        use_container_width=True,
+        help="Preview the price of each selected item before finalizing the quote"
+    )
+
+with btn_col2:
     calculate_clicked = st.button(
         "🧮 Calculate Price",
         type="primary",
@@ -1326,6 +1348,8 @@ with btn_col3:
 
 if reset_clicked:
     st.session_state.result = None
+    st.session_state.preview_result = None
+    st.session_state.show_preview = False
     st.session_state.quotation_id = generate_quotation_id()
     st.session_state.last_config = {}
     st.session_state.quote_items = []
@@ -1349,10 +1373,90 @@ if reset_clicked:
 
     st.rerun()
 
+if preview_clicked:
+    errors = []
+    if storage_type != "None" and storage_gb == 0:
+        errors.append("Please enter Storage Size (GB) greater than 0.")
+
+    if errors:
+        for e in errors:
+            st.markdown(f'<div class="error-banner">⚠️ {e}</div>',
+                        unsafe_allow_html=True)
+    else:
+        with st.spinner("Building price summary..."):
+            if product == "Vayu Cloud":
+                preview_vm_result = calculate_vayu_price(
+                    flavour, os_type, pricing_tier, quantity,
+                    storage_type if storage_type != "None" else "None",
+                    storage_gb, backup_type, backup_gb,
+                    "None", public_ips
+                )
+            elif product == "Hana Grid":
+                preview_vm_result = calculate_hana_price(
+                    flavour, os_type, pricing_tier, quantity,
+                    storage_type if storage_type != "None" else "None",
+                    storage_gb, backup_type, backup_gb
+                )
+            else:
+                preview_vm_result = calculate_olvm_price(
+                    flavour, pricing_tier, quantity,
+                    storage_type if storage_type != "None" else "None",
+                    storage_gb, backup_type, backup_gb
+                )
+
+        if preview_vm_result:
+            preview_rows = []
+            for k, v in preview_vm_result.items():
+                if k != "Grand Total" and isinstance(v, (int, float)) and v != 0:
+                    preview_rows.append({"Item": k, "Amount (INR / month)": round(v, 2)})
+
+            addl_items = [
+                ("Network / Internet", ns_cost),
+                ("Firewall", firewall_cost),
+                ("Software License", lic_cost),
+                ("Backup Storage", bk_cost),
+                ("Network Element", ne_cost),
+                ("Management Services", mg_cost),
+                ("Miscellaneous", mi_cost),
+            ]
+            for label, cost in addl_items:
+                if cost > 0:
+                    preview_rows.append({"Item": label, "Amount (INR / month)": round(cost, 2)})
+
+            preview_grand_total = preview_vm_result.get("Grand Total", 0) + total_additional
+
+            st.session_state.preview_result = {
+                "rows": preview_rows,
+                "grand_total": round(preview_grand_total, 2),
+            }
+            st.session_state.show_preview = True
+        else:
+            st.session_state.show_preview = False
+            st.markdown('<div class="error-banner">❌ Could not build price summary. Please check your selections.</div>',
+                        unsafe_allow_html=True)
+
+if st.session_state.show_preview and st.session_state.preview_result:
+    st.markdown("---")
+    st.markdown('<div class="section-title">📊 Individual Price Summary (Preview)</div>',
+                unsafe_allow_html=True)
+    preview_df = pd.DataFrame(st.session_state.preview_result["rows"])
+    st.dataframe(preview_df, use_container_width=True, hide_index=True)
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.85); border-radius:10px;
+                padding:14px 20px; border-left: 4px solid #2563EB; margin-top:8px;">
+        <b style="color:#1B3A6B;">Estimated Grand Total:</b>
+        <span style="color:#2563EB; font-weight:700; font-size:1.1rem;">
+            &nbsp;{format_inr(st.session_state.preview_result['grand_total'])} / month
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption("This is a preview only — nothing has been added to your quote yet. Adjust Step 2/3 selections and re-click the summary button anytime, or click **Calculate Price** below to finalize this configuration.")
+
 
 # CALCULATE
 
 if calculate_clicked:
+    st.session_state.show_preview = False
     errors = []
     if storage_type != "None" and storage_gb == 0:
         errors.append("Please enter Storage Size (GB) greater than 0.")
@@ -1517,6 +1621,9 @@ if st.session_state.quote_items:
 
     if st.button("Clear quote list", type="secondary"):
         st.session_state.quote_items = []
+        st.session_state.result = None
+        st.session_state.preview_result = None
+        st.session_state.show_preview = False
         st.rerun()
 
     st.markdown("---")
