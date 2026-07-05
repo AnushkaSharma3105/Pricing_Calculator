@@ -1997,8 +1997,8 @@ elif st.session_state.result:
     st.markdown(f"""
     <div class="price-box">
         <p>Quotation ID: {qid}</p>
-        <p>{saved['product']} · {saved['flavour']} · Qty: {result['Quantity']}</p>
-        <h1>{format_inr(result['Grand Total'])}</h1>
+        <p>{saved.get('product', 'N/A')} · {saved.get('flavour', 'N/A')} · Qty: {result.get('Quantity', 1)}</p>
+        <h1>{format_inr(result.get('Grand Total', 0))}</h1>
         <p>Latest calculated configuration total</p>
     </div>
     """, unsafe_allow_html=True)
