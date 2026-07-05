@@ -1086,10 +1086,13 @@ with st.expander("**🌐 Network & Security Services**", expanded=False):
         ns_firewall_mbps = st.number_input(
             "Firewall Bandwidth (Mbps)",
             min_value=0, max_value=100000,
-            value=0, step=100,
+            step=100,
             key="ns_firewall_mbps",
-            help="Enter the bandwidth this firewall should handle"
-        ) if ns_firewall != "None" else 0
+            help="Enter the bandwidth this firewall should handle",
+        )
+
+    if ns_firewall == "None" and ns_firewall_mbps > 0:
+        st.caption("⚠️ Select a Firewall Type above to include this bandwidth in the quote.")
 
     # Calculate internet cost
     ns_cost = 0
@@ -1612,7 +1615,7 @@ if calculate_clicked:
                 if fw_signature not in added_sigs.get("Firewall", []):
                     row = _blank_row()
                     row.update({
-                        "Category": f"Firewall ({ns_firewall_mbps} Mbps)", "_bucket": "Firewall", "_signature": fw_signature,
+                        "Category": "Firewall", "_bucket": "Firewall", "_signature": fw_signature,
                         "Firewall Type": ns_firewall,
                         "Firewall Bandwidth (Mbps)": ns_firewall_mbps,
                         "Firewall Cost (INR)": round(firewall_cost, 2),
@@ -1620,7 +1623,7 @@ if calculate_clicked:
                     })
                     new_rows.append(row)
                     added_sigs.setdefault("Firewall", []).append(fw_signature)
-                    added_labels.append(f"Firewall ({ns_firewall_mbps} Mbps)")
+                    added_labels.append("Firewall")
 
             # ── Software & Licenses ──
             if lic_subtype != "None" and lic_qty > 0:
