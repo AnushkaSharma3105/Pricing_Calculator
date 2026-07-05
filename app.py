@@ -1787,126 +1787,109 @@ if st.session_state.quote_items:
         ).any()
 
     
-    editable_cols = [
-    "Quantity", "Storage (GB)", "Backup (GB)", "Public IPs",
-    "Bandwidth (Mbps)", "Firewall Bandwidth (Mbps)",
-    "License Qty", "Backup Storage (GB)", "Management Qty", "Misc Qty",
-    ]
-    display_cols = [
-        c for c in display_cols
-        if c in ALWAYS_SHOW_COLS or c in editable_cols or _col_has_data(c)
-    ] 
-   
-    disabled_cols = [c for c in display_cols if c not in editable_cols]
+    display_cols = [c for c in display_cols if c in ALWAYS_SHOW_COLS or _col_has_data(c)]
+    st.dataframe(quote_df[display_cols], use_container_width=True, hide_index=True)
 
-    edited_df = st.data_editor(
-        quote_df[display_cols],
-        use_container_width=True,
-        hide_index=True,
-        disabled=disabled_cols,
-        key="quote_editor",
-    )
+    with st.expander("✏️ Edit an item (fix a wrong quantity / Mbps / GB)"):
+        edit_options = [
+            f"{index + 1}. {item.get('Category', 'Item')} — {format_inr(item.get('Line Total (INR)', 0))}"
+            for index, item in enumerate(items)
+        ]
+        selected_edit = st.selectbox(
+            "Select item to edit",
+            options=edit_options,
+            key="edit_item_select"
+        )
+        edit_index = edit_options.index(selected_edit)
+        edit_item = items[edit_index]
+        edit_bucket = edit_item.get("_bucket")
 
-    for idx in edited_df.index:
-        old_row = quote_df.loc[idx]
-        new_row = edited_df.loc[idx]
-        item = st.session_state.quote_items[idx]
-        bucket = item.get("_bucket")
-        changed = False
+        FIELD_BY_BUCKET = {
+            "VM": ("Quantity", "Quantity"),
+            "Network": ("Bandwidth (Mbps)", "Bandwidth (Mbps)"),
+            "Firewall": ("Firewall Bandwidth (Mbps)", "Firewall Bandwidth (Mbps)"),
+            "License": ("License Qty", "License Qty"),
+            "Backup Storage": ("Backup Storage (GB)", "Backup Storage (GB)"),
+            "Network Element": (None, None),
+            "Management": ("Management Qty", "Management Qty"),
+            "Misc": ("Misc Qty", "Misc Qty"),
+        }
+        field_key, field_label = FIELD_BY_BUCKET.get(edit_bucket, (None, None))
 
-        if bucket == "VM" and (
-            new_row.get("Quantity") != old_row.get("Quantity")
-            or new_row.get("Storage (GB)") != old_row.get("Storage (GB)")
-            or new_row.get("Backup (GB)") != old_row.get("Backup (GB)")
-            or new_row.get("Public IPs") != old_row.get("Public IPs")
-        ):
-            new_qty = int(new_row["Quantity"])
-            new_storage = int(new_row["Storage (GB)"])
-            new_backup = int(new_row["Backup (GB)"])
-            new_ips = int(new_row["Public IPs"])
-            if item["Product"] == "Vayu Cloud":
-                vm_result = calculate_vayu_price(
-                    item["Flavour"], item["Operating System"], item["Pricing Tier"], new_qty,
-                    item["Storage Type"], new_storage, item["Backup Type"], new_backup,
-                    "None", new_ips
-                )
-            elif item["Product"] == "Hana Grid":
-                vm_result = calculate_hana_price(
-                    item["Flavour"], item["Operating System"], item["Pricing Tier"], new_qty,
-                    item["Storage Type"], new_storage, item["Backup Type"], new_backup
-                )
-            else:
-                vm_result = calculate_olvm_price(
-                    item["Flavour"], item["Pricing Tier"], new_qty,
-                    item["Storage Type"], new_storage, item["Backup Type"], new_backup
-                )
-            if vm_result:
-                item["Quantity"] = new_qty
-                item["Storage (GB)"] = new_storage
-                item["Backup (GB)"] = new_backup
-                item["Public IPs"] = new_ips
-                item["Line Total (INR)"] = round(vm_result.get("Grand Total", 0), 2)
-                changed = True
+        if field_key is None:
+            st.caption("This item type doesn't have an editable quantity.")
+        else:
+            current_value = edit_item.get(field_key, 0)
+            new_value = st.number_input(
+                f"New {field_label}",
+                min_value=0,
+                value=int(current_value) if current_value else 0,
+                step=1,
+                key=f"edit_value_{edit_index}"
+            )
 
-        elif bucket == "Network":
-            old_bw, new_bw = old_row["Bandwidth (Mbps)"], new_row["Bandwidth (Mbps)"]
-            if new_bw != old_bw and old_bw > 0:
-                ratio = new_bw / old_bw
-                item["Bandwidth (Mbps)"] = new_bw
-                item["Network Cost (INR)"] = round(item["Network Cost (INR)"] * ratio, 2)
-                item["Line Total (INR)"] = item["Network Cost (INR)"]
-                changed = True
+            if st.button("Update this item", type="secondary"):
+                old_value = current_value
+                updated = False
 
-        elif bucket == "Firewall":
-            old_bw, new_bw = old_row["Firewall Bandwidth (Mbps)"], new_row["Firewall Bandwidth (Mbps)"]
-            if new_bw != old_bw and old_bw > 0:
-                ratio = new_bw / old_bw
-                item["Firewall Bandwidth (Mbps)"] = new_bw
-                item["Firewall Cost (INR)"] = round(item["Firewall Cost (INR)"] * ratio, 2)
-                item["Line Total (INR)"] = item["Firewall Cost (INR)"]
-                changed = True
+                if edit_bucket == "VM":
+                    if edit_item["Product"] == "Vayu Cloud":
+                        vm_result = calculate_vayu_price(
+                            edit_item["Flavour"], edit_item["Operating System"], edit_item["Pricing Tier"],
+                            new_value, edit_item["Storage Type"], edit_item["Storage (GB)"],
+                            edit_item["Backup Type"], edit_item["Backup (GB)"], "None", edit_item["Public IPs"]
+                        )
+                    elif edit_item["Product"] == "Hana Grid":
+                        vm_result = calculate_hana_price(
+                            edit_item["Flavour"], edit_item["Operating System"], edit_item["Pricing Tier"],
+                            new_value, edit_item["Storage Type"], edit_item["Storage (GB)"],
+                            edit_item["Backup Type"], edit_item["Backup (GB)"]
+                        )
+                    else:
+                        vm_result = calculate_olvm_price(
+                            edit_item["Flavour"], edit_item["Pricing Tier"], new_value,
+                            edit_item["Storage Type"], edit_item["Storage (GB)"],
+                            edit_item["Backup Type"], edit_item["Backup (GB)"]
+                        )
+                    if vm_result:
+                        edit_item["Quantity"] = new_value
+                        edit_item["Line Total (INR)"] = round(vm_result.get("Grand Total", 0), 2)
+                        updated = True
 
-        elif bucket == "License":
-            old_qty, new_qty = old_row["License Qty"], new_row["License Qty"]
-            if new_qty != old_qty and old_qty > 0:
-                ratio = new_qty / old_qty
-                item["License Qty"] = new_qty
-                item["License Cost (INR)"] = round(item["License Cost (INR)"] * ratio, 2)
-                item["Line Total (INR)"] = item["License Cost (INR)"]
-                changed = True
+                elif old_value and old_value > 0:
+                    ratio = new_value / old_value
+                    if edit_bucket == "Network":
+                        edit_item["Bandwidth (Mbps)"] = new_value
+                        edit_item["Network Cost (INR)"] = round(edit_item["Network Cost (INR)"] * ratio, 2)
+                        edit_item["Line Total (INR)"] = edit_item["Network Cost (INR)"]
+                    elif edit_bucket == "Firewall":
+                        edit_item["Firewall Bandwidth (Mbps)"] = new_value
+                        edit_item["Firewall Cost (INR)"] = round(edit_item["Firewall Cost (INR)"] * ratio, 2)
+                        edit_item["Line Total (INR)"] = edit_item["Firewall Cost (INR)"]
+                    elif edit_bucket == "License":
+                        edit_item["License Qty"] = new_value
+                        edit_item["License Cost (INR)"] = round(edit_item["License Cost (INR)"] * ratio, 2)
+                        edit_item["Line Total (INR)"] = edit_item["License Cost (INR)"]
+                    elif edit_bucket == "Backup Storage":
+                        edit_item["Backup Storage (GB)"] = new_value
+                        edit_item["Backup Storage Cost (INR)"] = round(edit_item["Backup Storage Cost (INR)"] * ratio, 2)
+                        edit_item["Line Total (INR)"] = edit_item["Backup Storage Cost (INR)"]
+                    elif edit_bucket == "Management":
+                        edit_item["Management Qty"] = new_value
+                        edit_item["Management Cost (INR)"] = round(edit_item["Management Cost (INR)"] * ratio, 2)
+                        edit_item["Line Total (INR)"] = edit_item["Management Cost (INR)"]
+                    elif edit_bucket == "Misc":
+                        edit_item["Misc Qty"] = new_value
+                        edit_item["Misc Cost (INR)"] = round(edit_item["Misc Cost (INR)"] * ratio, 2)
+                        edit_item["Line Total (INR)"] = edit_item["Misc Cost (INR)"]
+                    updated = True
+                elif new_value > 0 and (not old_value or old_value == 0):
+                    st.warning("Can't scale from zero — please remove and re-add this item instead if the original value was 0.")
 
-        elif bucket == "Backup Storage":
-            old_qty, new_qty = old_row["Backup Storage (GB)"], new_row["Backup Storage (GB)"]
-            if new_qty != old_qty and old_qty > 0:
-                ratio = new_qty / old_qty
-                item["Backup Storage (GB)"] = new_qty
-                item["Backup Storage Cost (INR)"] = round(item["Backup Storage Cost (INR)"] * ratio, 2)
-                item["Line Total (INR)"] = item["Backup Storage Cost (INR)"]
-                changed = True
-
-        elif bucket == "Management":
-            old_qty, new_qty = old_row["Management Qty"], new_row["Management Qty"]
-            if new_qty != old_qty and old_qty > 0:
-                ratio = new_qty / old_qty
-                item["Management Qty"] = new_qty
-                item["Management Cost (INR)"] = round(item["Management Cost (INR)"] * ratio, 2)
-                item["Line Total (INR)"] = item["Management Cost (INR)"]
-                changed = True
-
-        elif bucket == "Misc":
-            old_qty, new_qty = old_row["Misc Qty"], new_row["Misc Qty"]
-            if new_qty != old_qty and old_qty > 0:
-                ratio = new_qty / old_qty
-                item["Misc Qty"] = new_qty
-                item["Misc Cost (INR)"] = round(item["Misc Cost (INR)"] * ratio, 2)
-                item["Line Total (INR)"] = item["Misc Cost (INR)"]
-                changed = True
-
-        if changed:
-            st.session_state.quote_items[idx] = item
-
-    if not edited_df[editable_cols].equals(quote_df[editable_cols]):
-        st.rerun()
+                if updated:
+                    st.session_state.quote_items[edit_index] = edit_item
+                    st.success("Item updated.")
+                    st.rerun()
 
     with st.expander("Remove item from quote"):
         remove_options = [
