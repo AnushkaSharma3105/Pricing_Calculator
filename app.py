@@ -1752,18 +1752,13 @@ if st.session_state.quote_items:
     )
     st.session_state.history_saved_for_qid = qid
 
-    st.markdown(f"""
-    <div class="price-box">
-        <p>Quotation ID: {qid}</p>
-        <p>{len(items)} configuration(s) added</p>
-        <h1>{format_inr(grand_total)}</h1>
-        <p>Grand Total per Month (INR, excl. taxes)</p>
-    </div>
-    """, unsafe_allow_html=True)
+    
 
     st.markdown("**📦 Added Configurations**")
     quote_df = pd.DataFrame(items)
+    quote_df.insert(0, "S.No.", range(1, len(quote_df) + 1))
     display_cols = [
+        "S.No.",
         "Category",
         "Product", "Flavour", "Element", "Hypervisor",
         "Operating System", "Pricing Tier",
@@ -1780,7 +1775,7 @@ if st.session_state.quote_items:
     ]
     display_cols = [c for c in display_cols if c in quote_df.columns]
 
-    ALWAYS_SHOW_COLS = {"Category", "Line Total (INR)", "Product", "Flavour"}
+    ALWAYS_SHOW_COLS = {"S.No.", "Category", "Line Total (INR)", "Product", "Flavour"}
 
     def _col_has_data(col_name):
         series = quote_df[col_name]
@@ -1792,6 +1787,33 @@ if st.session_state.quote_items:
     
     display_cols = [c for c in display_cols if c in ALWAYS_SHOW_COLS or _col_has_data(c)]
     st.dataframe(quote_df[display_cols], use_container_width=True, hide_index=True)
+
+    estimated_upfront_cost = 0.0
+    estimated_monthly_cost = grand_total
+    estimated_annual_cost = grand_total * 12
+
+    st.markdown(
+        f"""
+        <div style="width:100%; padding:16px; background:#F8FAFC; border:1px solid #BFDBFE; border-radius:10px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#1E3A8A; margin-bottom:12px;">💰 Estimated Cost Summary</div>
+            <table style="width:100%; border-collapse: collapse; font-family: inherit;">
+                <tr>
+                    <td style="padding: 6px 0; text-align:left; color:#0F172A;">Estimated upfront cost</td>
+                    <td style="padding: 6px 0; text-align:right; color:#0F172A;">{format_inr(estimated_upfront_cost)}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; text-align:left; color:#0F172A;">Estimated monthly cost</td>
+                    <td style="padding: 6px 0; text-align:right; color:#0F172A;">{format_inr(estimated_monthly_cost)}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; text-align:left; color:#0F172A;">Estimated annual cost</td>
+                    <td style="padding: 6px 0; text-align:right; color:#0F172A;">{format_inr(estimated_annual_cost)}</td>
+                </tr>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     with st.expander("✏️ Edit an item (fix a wrong quantity / Mbps / GB)"):
         edit_options = [

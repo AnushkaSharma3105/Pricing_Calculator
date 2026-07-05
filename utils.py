@@ -224,7 +224,7 @@ def build_quote_export_dataframe(items):
     rows = []
     for index, item in enumerate(items, start=1):
         rows.append({
-            "S.No": index,
+            "S.No.": index,
             "Category": item.get("Category", ""),
             "Product": item.get("Product", ""),
             "Flavour": item.get("Flavour", ""),
@@ -447,6 +447,9 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         number_fmt = workbook.add_format({
             "border": 1, "num_format": "#,##0.00"
         })
+        sno_fmt = workbook.add_format({
+        "border": 1, "num_format": "0"
+        })
         total_fmt = workbook.add_format({
             "bold": True, "bg_color": "#FFF3CD",
             "font_color": "#856404", "border": 1,
@@ -457,7 +460,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             "font_color": "#856404", "border": 1
         })
 
-        boq_col_widths = [22, 18, 20, 22, 10, 12, 14, 20, 8, 28, 22]
+        boq_col_widths = [8, 22, 18, 20, 22, 10, 12, 14, 20, 8, 28, 22]
         worksheet.set_column("A:A", boq_col_widths[0])
         worksheet.set_column("B:B", boq_col_widths[1])
         worksheet.set_column("C:C", boq_col_widths[2])
@@ -469,11 +472,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         worksheet.set_column("I:I", boq_col_widths[8])
         worksheet.set_column("J:J", boq_col_widths[9])
         worksheet.set_column("K:K", boq_col_widths[10])
+        worksheet.set_column("L:L", boq_col_widths[11])
 
         _reserve_logo_rows(worksheet)
 
         row = LOGO_TOP_ROWS
-        worksheet.merge_range(row, 0, row, 10, "PRICE QUOTATION", title_fmt)
+        worksheet.merge_range(row, 0, row, 11, "PRICE QUOTATION", title_fmt)
         row += 1
         worksheet.write(row, 0, f"Quotation ID: {quotation_id}", subtitle_fmt)
         row += 1
@@ -490,7 +494,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         row += 1
 
         def write_section_header(ws, r, title):
-            ws.merge_range(r, 0, r, 10, title, section_fmt)
+            ws.merge_range(r, 0, r, 11, title, section_fmt)
             return r + 1
 
         def write_col_headers(ws, r, headers):
@@ -503,6 +507,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 fmt = fmts[c] if fmts and c < len(fmts) else (number_fmt if isinstance(v, (int, float)) else data_fmt)
                 ws.write(r, c, v, fmt)
             return r + 1
+        
+        def row_fmts(values):
+            fmts = [sno_fmt]
+            for v in values[1:]:
+                fmts.append(number_fmt if isinstance(v, (int, float)) else data_fmt)
+            return fmts
 
         
         # SECTION 1: Network & Security Services
@@ -625,7 +635,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     r2.get("Backup Storage Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -646,7 +656,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "", 1, "",
                     r2.get("Network Element Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -669,7 +679,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     r2.get("Management Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -692,7 +702,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     r2.get("Misc Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -700,7 +710,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         
         # GRAND TOTAL ROW
         
-        worksheet.merge_range(row, 0, row, 9, "GRAND TOTAL", total_label_fmt)
-        worksheet.write(row, 10, grand_total, total_fmt)
+        worksheet.merge_range(row, 0, row, 10, "GRAND TOTAL", total_label_fmt)
+        worksheet.write(row, 11, grand_total, total_fmt)
 
     return _embed_logo_at_top(output.getvalue(), "BOQ")
