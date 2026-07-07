@@ -282,7 +282,7 @@ def export_quote_to_csv(df, grand_total=None):
     """Export in BOQ format as CSV"""
     lines = []
 
-    lines.append("PRICE QUOTATION - CLOUDQUOTE")
+    lines.append("PRICE QUOTATION - AETHERPRICE")
     lines.append("")
     lines.append("Account Manager,,BD,,Solution Architect,,")
     lines.append("Service Model,IPC,Contract,,IDC Location,,")

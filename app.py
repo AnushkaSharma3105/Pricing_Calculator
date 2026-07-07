@@ -72,7 +72,7 @@ PUBLIC_IP_PRICE_CONNECTIVITY = 900  # from master file Connectivity sheet
 # PAGE CONFIG
 
 st.set_page_config(
-    page_title="CloudQuote",
+    page_title="Aetherprice",
     page_icon="☁️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -622,7 +622,7 @@ with nav_cols[0]:
         f"<div class='ttbs-nav-brand'>"
         f"{logo_html}"
         f"<span class='ttbs-nav-title'>"
-        f"☁️ CloudQuote &nbsp;|&nbsp; "
+        f"☁️ Aetherprice &nbsp;|&nbsp; "
         f"<span class='ttbs-nav-greeting'>Hi, {user['full_name'].split()[0]}!</span>"
         f"</span></div>",
         unsafe_allow_html=True
@@ -718,7 +718,7 @@ with st.sidebar:
 
 st.markdown("""
 <div class="card">
-    <h2 style="margin:0; color:#1B3A6B;"> CloudQuote </h2>
+    <h2 style="margin:0; color:#1B3A6B;"> Aetherprice </h2>
     <h4 style="margin:0; color: #4D516D;"> ☁️ Cloud Infrastructure Price Calculator </h4>
     <p style="margin:4px 0 0 0; color:#64748B;">
         Tata TeleServices · India Region · All prices in INR per month
