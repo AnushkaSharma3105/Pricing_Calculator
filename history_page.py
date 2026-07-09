@@ -2,7 +2,13 @@ import json
 import streamlit as st
 import pandas as pd
 from history_db import fetch_all_quotations, fetch_quotation_by_db_id, delete_quotation_by_id
-from utils import format_inr, export_quote_to_csv, export_quote_to_excel, export_to_excel
+from utils import (
+    format_inr,
+    export_quote_to_csv,
+    export_quote_to_excel,
+    export_to_excel,
+    normalize_quote_dataframe,
+)
 
 
 def show_cart():
@@ -63,6 +69,8 @@ def show_cart():
 
         payload = json.loads(history['quotation_json'])
         payload_df = pd.DataFrame(payload.get('rows', []))
+        if payload.get('type') == 'full_quote':
+            payload_df = normalize_quote_dataframe(payload_df)
         meta = payload.get('metadata', {})
 
         st.markdown("<div class='card' style='padding: 16px; margin-top: 12px;'>", unsafe_allow_html=True)

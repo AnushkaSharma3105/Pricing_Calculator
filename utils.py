@@ -278,8 +278,21 @@ def build_quote_export_dataframe(items):
     return df
 
 
+def normalize_quote_dataframe(df):
+    """Ensure quote export DataFrame has all expected columns (legacy history rows)."""
+    template = build_quote_export_dataframe([{}])
+    if df is None or (isinstance(df, pd.DataFrame) and df.empty):
+        return pd.DataFrame(columns=template.columns)
+    normalized = df.copy()
+    for col in template.columns:
+        if col not in normalized.columns:
+            normalized[col] = template[col].iloc[0]
+    return normalized
+
+
 def export_quote_to_csv(df, grand_total=None):
     """Export in BOQ format as CSV"""
+    df = normalize_quote_dataframe(df)
     lines = []
 
     lines.append("PRICE QUOTATION - AetherPrice")
@@ -410,6 +423,7 @@ def export_quote_to_csv(df, grand_total=None):
 
 def export_quote_to_excel(df, quotation_id, grand_total):
     """Export in BOQ format as Excel matching OUTPUT_FORMAT.xlsx structure"""
+    df = normalize_quote_dataframe(df)
     output = io.BytesIO()
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
