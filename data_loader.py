@@ -24,126 +24,80 @@ OLVM_OS_COLUMNS = {
 }
 
 
+# ── Load the file ONCE and cache it forever ──
 @st.cache_data
-def load_raw_data():
-    df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
-    return df
+def _load_sheet():
+    """Reads the Excel file exactly once. Everything else uses this."""
+    return pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
+
+
+def _parse_rows(df, service_type, os_columns):
+    rows = []
+    for _, row in df.iterrows():
+        if str(row[0]).strip() == service_type:
+            entry = {
+                "Flavour": str(row[1]).strip(),
+                "vCPU": row[2],
+                "RAM (GB)": row[3],
+                "Root Disk (GB)": row[4],
+            }
+            if service_type == "Vayu Cloud- Open Stack":
+                entry["Root Disk Windows (GB)"] = row[4]
+                entry["Root Disk Other OS (GB)"] = row[5]
+            for os_name, cols in os_columns.items():
+                for tier, col_idx in cols.items():
+                    val = row[col_idx]
+                    entry[f"{os_name}__{tier}"] = val if pd.notna(val) else None
+            rows.append(entry)
+    return pd.DataFrame(rows)
 
 
 @st.cache_data
 def load_vayu_cloud():
-    df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
-    rows = []
-    for _, row in df.iterrows():
-        if str(row[0]).strip() == "Vayu Cloud- Open Stack":
-            flavour = str(row[1]).strip()
-            vcpu = row[2]
-            ram = row[3]
-            root_win = row[4]
-            root_other = row[5]
-            entry = {
-                "Flavour": flavour,
-                "vCPU": vcpu,
-                "RAM (GB)": ram,
-                "Root Disk Windows (GB)": root_win,
-                "Root Disk Other OS (GB)": root_other,
-            }
-            for os_name, cols in VAYU_OS_COLUMNS.items():
-                for tier, col_idx in cols.items():
-                    val = row[col_idx]
-                    entry[f"{os_name}__{tier}"] = val if pd.notna(val) else None
-            rows.append(entry)
-    return pd.DataFrame(rows)
+    return _parse_rows(_load_sheet(), "Vayu Cloud- Open Stack", VAYU_OS_COLUMNS)
 
 
 @st.cache_data
 def load_hana_grid():
-    df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
-    rows = []
-    for _, row in df.iterrows():
-        if str(row[0]).strip() == "HANA Grid":
-            flavour = str(row[1]).strip()
-            vcpu = row[2]
-            ram = row[3]
-            root_disk = row[4]
-            entry = {
-                "Flavour": flavour,
-                "vCPU": vcpu,
-                "RAM (GB)": ram,
-                "Root Disk (GB)": root_disk,
-            }
-            for os_name, cols in HANA_OS_COLUMNS.items():
-                for tier, col_idx in cols.items():
-                    val = row[col_idx]
-                    entry[f"{os_name}__{tier}"] = val if pd.notna(val) else None
-            rows.append(entry)
-    return pd.DataFrame(rows)
+    return _parse_rows(_load_sheet(), "HANA Grid", HANA_OS_COLUMNS)
 
 
 @st.cache_data
 def load_olvm():
-    df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
-    rows = []
-    for _, row in df.iterrows():
-        if str(row[0]).strip() == "OLVM":
-            flavour = str(row[1]).strip()
-            vcpu = row[2]
-            ram = row[3]
-            root_disk = row[4]
-            entry = {
-                "Flavour": flavour,
-                "vCPU": vcpu,
-                "RAM (GB)": ram,
-                "Root Disk (GB)": root_disk,
-            }
-            for os_name, cols in OLVM_OS_COLUMNS.items():
-                for tier, col_idx in cols.items():
-                    val = row[col_idx]
-                    entry[f"{os_name}__{tier}"] = val if pd.notna(val) else None
-            rows.append(entry)
-    return pd.DataFrame(rows)
+    return _parse_rows(_load_sheet(), "OLVM", OLVM_OS_COLUMNS)
 
 
 @st.cache_data
 def get_vayu_flavours():
-    df = load_vayu_cloud()
-    return sorted(df["Flavour"].tolist())
+    return sorted(load_vayu_cloud()["Flavour"].tolist())
 
 
 @st.cache_data
 def get_hana_flavours():
-    df = load_hana_grid()
-    return sorted(df["Flavour"].tolist())
+    return sorted(load_hana_grid()["Flavour"].tolist())
 
 
 @st.cache_data
 def get_olvm_flavours():
-    df = load_olvm()
-    return sorted(df["Flavour"].tolist())
+    return sorted(load_olvm()["Flavour"].tolist())
 
 
 @st.cache_data
 def get_vayu_row(flavour):
     df = load_vayu_cloud()
     result = df[df["Flavour"] == flavour]
-    if result.empty:
-        return None
-    return result.iloc[0]
+    return None if result.empty else result.iloc[0]
 
 
 @st.cache_data
 def get_hana_row(flavour):
     df = load_hana_grid()
     result = df[df["Flavour"] == flavour]
-    if result.empty:
-        return None
-    return result.iloc[0]
+    return None if result.empty else result.iloc[0]
 
 
 @st.cache_data
 def get_olvm_row(flavour):
     df = load_olvm()
     result = df[df["Flavour"] == flavour]
-    if result.empty:
-        return None
-    return result.iloc[0]
+    return None if result.empty else result.iloc[0]

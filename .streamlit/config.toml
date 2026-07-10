@@ -8,12 +8,14 @@ font = "sans serif"
 
 [server]
 maxUploadSize = 5
+maxMessageSize = 50
 
 [runner]
 fastReruns = true
 
 [client]
 showErrorDetails = false
+caching = true
 
 [browser]
 gatherUsageStats = false
