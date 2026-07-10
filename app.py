@@ -1829,92 +1829,369 @@ if st.session_state.quote_items:
         edit_item = items[edit_index]
         edit_bucket = edit_item.get("_bucket")
 
-        FIELD_BY_BUCKET = {
-            "VM": ("Quantity", "Quantity"),
-            "Network": ("Bandwidth (Mbps)", "Bandwidth (Mbps)"),
-            "Firewall": ("Firewall Bandwidth (Mbps)", "Firewall Bandwidth (Mbps)"),
-            "License": ("License Qty", "License Qty"),
-            "Backup Storage": ("Backup Storage (GB)", "Backup Storage (GB)"),
-            "Network Element": (None, None),
-            "Management": ("Management Qty", "Management Qty"),
-            "Misc": ("Misc Qty", "Misc Qty"),
-        }
-        field_key, field_label = FIELD_BY_BUCKET.get(edit_bucket, (None, None))
+        updated = False
 
-        if field_key is None:
-            st.caption("This item type doesn't have an editable quantity.")
-        else:
-            current_value = edit_item.get(field_key, 0)
-            new_value = st.number_input(
-                f"New {field_label}",
-                min_value=0,
-                value=int(current_value) if current_value else 0,
-                step=1,
-                key=f"edit_value_{edit_index}"
-            )
+        # ── VM Configuration ──
+        if edit_bucket == "VM":
+            ec1, ec2 = st.columns(2)
+            with ec1:
+                ed_flavour = st.selectbox("Flavour",
+                    get_vayu_flavours() if edit_item["Product"] == "Vayu Cloud"
+                    else get_hana_flavours() if edit_item["Product"] == "Hana Grid"
+                    else get_olvm_flavours(),
+                    index=(
+                        get_vayu_flavours() if edit_item["Product"] == "Vayu Cloud"
+                        else get_hana_flavours() if edit_item["Product"] == "Hana Grid"
+                        else get_olvm_flavours()
+                    ).index(edit_item["Flavour"])
+                    if edit_item["Flavour"] in (
+                        get_vayu_flavours() if edit_item["Product"] == "Vayu Cloud"
+                        else get_hana_flavours() if edit_item["Product"] == "Hana Grid"
+                        else get_olvm_flavours()
+                    ) else 0,
+                    key=f"ed_flavour_{edit_index}"
+                )
+                if edit_item["Product"] in ("Vayu Cloud", "Hana Grid"):
+                    os_opts = VAYU_OS_OPTIONS if edit_item["Product"] == "Vayu Cloud" else HANA_OS_OPTIONS
+                    ed_os = st.selectbox("Operating System", os_opts,
+                        index=os_opts.index(edit_item["Operating System"])
+                        if edit_item["Operating System"] in os_opts else 0,
+                        key=f"ed_os_{edit_index}"
+                    )
+                else:
+                    ed_os = "Linux"
+                ed_tier_opts = PRICING_TIERS
+                ed_tier = st.selectbox("Pricing Tier", ed_tier_opts,
+                    index=ed_tier_opts.index(edit_item["Pricing Tier"])
+                    if edit_item["Pricing Tier"] in ed_tier_opts else 0,
+                    key=f"ed_tier_{edit_index}"
+                )
+                ed_qty = st.number_input("Quantity (No. of VMs)",
+                    min_value=1, max_value=500,
+                    value=int(edit_item.get("Quantity", 1)),
+                    step=1, key=f"ed_qty_{edit_index}"
+                )
+            with ec2:
+                storage_opts = ["None"] + list(STORAGE_PRICES.keys())
+                ed_storage_type = st.selectbox("Storage Type", storage_opts,
+                    index=storage_opts.index(edit_item["Storage Type"])
+                    if edit_item["Storage Type"] in storage_opts else 0,
+                    key=f"ed_storage_type_{edit_index}"
+                )
+                ed_storage_gb = st.number_input("Storage Size (GB)",
+                    min_value=0, max_value=100000,
+                    value=int(edit_item.get("Storage (GB)", 0)),
+                    step=50, key=f"ed_storage_gb_{edit_index}"
+                ) if ed_storage_type != "None" else 0
+                backup_opts = list(BACKUP_PRICES.keys())
+                ed_backup_type = st.selectbox("Backup Type", backup_opts,
+                    index=backup_opts.index(edit_item["Backup Type"])
+                    if edit_item["Backup Type"] in backup_opts else 0,
+                    key=f"ed_backup_type_{edit_index}"
+                )
+                ed_backup_gb = st.number_input("Backup Size (GB)",
+                    min_value=0, max_value=100000,
+                    value=int(edit_item.get("Backup (GB)", 0)),
+                    step=50, key=f"ed_backup_gb_{edit_index}"
+                ) if ed_backup_type != "None" else 0
+                if edit_item["Product"] == "Vayu Cloud":
+                    ed_public_ips = st.number_input("No. of Public IPs",
+                        min_value=0, max_value=50,
+                        value=int(edit_item.get("Public IPs", 0)),
+                        step=1, key=f"ed_ips_{edit_index}"
+                    )
+                else:
+                    ed_public_ips = 0
 
-            if st.button("Update this item", type="secondary"):
-                old_value = current_value
-                updated = False
-
-                if edit_bucket == "VM":
-                    if edit_item["Product"] == "Vayu Cloud":
-                        vm_result = calculate_vayu_price(
-                            edit_item["Flavour"], edit_item["Operating System"], edit_item["Pricing Tier"],
-                            new_value, edit_item["Storage Type"], edit_item["Storage (GB)"],
-                            edit_item["Backup Type"], edit_item["Backup (GB)"], "None", edit_item["Public IPs"]
-                        )
-                    elif edit_item["Product"] == "Hana Grid":
-                        vm_result = calculate_hana_price(
-                            edit_item["Flavour"], edit_item["Operating System"], edit_item["Pricing Tier"],
-                            new_value, edit_item["Storage Type"], edit_item["Storage (GB)"],
-                            edit_item["Backup Type"], edit_item["Backup (GB)"]
-                        )
-                    else:
-                        vm_result = calculate_olvm_price(
-                            edit_item["Flavour"], edit_item["Pricing Tier"], new_value,
-                            edit_item["Storage Type"], edit_item["Storage (GB)"],
-                            edit_item["Backup Type"], edit_item["Backup (GB)"]
-                        )
-                    if vm_result:
-                        edit_item["Quantity"] = new_value
-                        edit_item["Line Total (INR)"] = round(vm_result.get("Grand Total", 0), 2)
-                        updated = True
-
-                elif old_value and old_value > 0:
-                    ratio = new_value / old_value
-                    if edit_bucket == "Network":
-                        edit_item["Bandwidth (Mbps)"] = new_value
-                        edit_item["Network Cost (INR)"] = round(edit_item["Network Cost (INR)"] * ratio, 2)
-                        edit_item["Line Total (INR)"] = edit_item["Network Cost (INR)"]
-                    elif edit_bucket == "Firewall":
-                        edit_item["Firewall Bandwidth (Mbps)"] = new_value
-                        edit_item["Firewall Cost (INR)"] = round(edit_item["Firewall Cost (INR)"] * ratio, 2)
-                        edit_item["Line Total (INR)"] = edit_item["Firewall Cost (INR)"]
-                    elif edit_bucket == "License":
-                        edit_item["License Qty"] = new_value
-                        edit_item["License Cost (INR)"] = round(edit_item["License Cost (INR)"] * ratio, 2)
-                        edit_item["Line Total (INR)"] = edit_item["License Cost (INR)"]
-                    elif edit_bucket == "Backup Storage":
-                        edit_item["Backup Storage (GB)"] = new_value
-                        edit_item["Backup Storage Cost (INR)"] = round(edit_item["Backup Storage Cost (INR)"] * ratio, 2)
-                        edit_item["Line Total (INR)"] = edit_item["Backup Storage Cost (INR)"]
-                    elif edit_bucket == "Management":
-                        edit_item["Management Qty"] = new_value
-                        edit_item["Management Cost (INR)"] = round(edit_item["Management Cost (INR)"] * ratio, 2)
-                        edit_item["Line Total (INR)"] = edit_item["Management Cost (INR)"]
-                    elif edit_bucket == "Misc":
-                        edit_item["Misc Qty"] = new_value
-                        edit_item["Misc Cost (INR)"] = round(edit_item["Misc Cost (INR)"] * ratio, 2)
-                        edit_item["Line Total (INR)"] = edit_item["Misc Cost (INR)"]
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                if edit_item["Product"] == "Vayu Cloud":
+                    vm_result = calculate_vayu_price(
+                        ed_flavour, ed_os, ed_tier, ed_qty,
+                        ed_storage_type, ed_storage_gb,
+                        ed_backup_type, ed_backup_gb,
+                        "None", ed_public_ips
+                    )
+                elif edit_item["Product"] == "Hana Grid":
+                    vm_result = calculate_hana_price(
+                        ed_flavour, ed_os, ed_tier, ed_qty,
+                        ed_storage_type, ed_storage_gb,
+                        ed_backup_type, ed_backup_gb
+                    )
+                else:
+                    vm_result = calculate_olvm_price(
+                        ed_flavour, ed_tier, ed_qty,
+                        ed_storage_type, ed_storage_gb,
+                        ed_backup_type, ed_backup_gb
+                    )
+                if vm_result:
+                    edit_item.update({
+                        "Flavour": ed_flavour,
+                        "Operating System": ed_os,
+                        "Pricing Tier": ed_tier,
+                        "Quantity": ed_qty,
+                        "Storage Type": ed_storage_type,
+                        "Storage (GB)": ed_storage_gb,
+                        "Backup Type": ed_backup_type,
+                        "Backup (GB)": ed_backup_gb,
+                        "Public IPs": ed_public_ips,
+                        "Line Total (INR)": round(vm_result.get("Grand Total", 0), 2),
+                    })
+                    new_specs = get_flavour_specs(edit_item["Product"], ed_flavour)
+                    edit_item["vCPU"] = new_specs.get("vCPU", "")
+                    edit_item["RAM (GB)"] = new_specs.get("RAM (GB)", "")
                     updated = True
-                elif new_value > 0 and (not old_value or old_value == 0):
-                    st.warning("Can't scale from zero — please remove and re-add this item instead if the original value was 0.")
 
-                if updated:
-                    st.session_state.quote_items[edit_index] = edit_item
-                    st.success("Item updated.")
-                    st.rerun()
+        # ── Network / Internet ──
+        elif edit_bucket == "Network":
+            ec1, ec2 = st.columns(2)
+            with ec1:
+                net_el_opts = ["None", "Internet", "DCI Interconnect", "VPN"]
+                ed_ns_element = st.selectbox("Element", net_el_opts,
+                    index=net_el_opts.index(edit_item["Network Element"])
+                    if edit_item["Network Element"] in net_el_opts else 0,
+                    key=f"ed_ns_el_{edit_index}"
+                )
+                feat_opts = ["None", "Bandwidth", "Port Speed"]
+                ed_ns_feature = st.selectbox("Feature", feat_opts,
+                    index=feat_opts.index(edit_item["Network Feature"])
+                    if edit_item["Network Feature"] in feat_opts else 0,
+                    key=f"ed_ns_feat_{edit_index}"
+                )
+                sub_opts = ["None", "IPC Internet", "Optical 10G", "Site to Site VPN", "Client to Site VPN"]
+                ed_ns_subtype = st.selectbox("Sub Type", sub_opts,
+                    index=sub_opts.index(edit_item["Network Sub Type"])
+                    if edit_item["Network Sub Type"] in sub_opts else 0,
+                    key=f"ed_ns_sub_{edit_index}"
+                )
+            with ec2:
+                ed_ns_bw = st.number_input("Bandwidth (Mbps)",
+                    min_value=0, max_value=100000,
+                    value=int(edit_item.get("Bandwidth (Mbps)", 0)),
+                    step=100, key=f"ed_ns_bw_{edit_index}"
+                )
+                unit_opts = ["Mbps", "Gbps"]
+                ed_ns_unit = st.selectbox("Unit", unit_opts, key=f"ed_ns_unit_{edit_index}")
+                ed_ns_qty = st.number_input("Quantity",
+                    min_value=0, max_value=100,
+                    value=1, step=1, key=f"ed_ns_qty_{edit_index}"
+                )
+            new_ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ed_ns_bw * ed_ns_qty if ed_ns_bw > 0 and ed_ns_qty > 0 else 0
+            st.caption(f"New estimated cost: {format_inr(new_ns_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "Network Element": ed_ns_element,
+                    "Network Feature": ed_ns_feature,
+                    "Network Sub Type": ed_ns_subtype,
+                    "Bandwidth (Mbps)": ed_ns_bw,
+                    "Network Cost (INR)": round(new_ns_cost, 2),
+                    "Line Total (INR)": round(new_ns_cost, 2),
+                })
+                updated = True
+
+        # ── Firewall ──
+        elif edit_bucket == "Firewall":
+            ec1, ec2 = st.columns(2)
+            fw_opts = list(FIREWALL_PRICES.keys())
+            with ec1:
+                ed_fw_type = st.selectbox("Firewall Type", fw_opts,
+                    index=fw_opts.index(edit_item["Firewall Type"])
+                    if edit_item["Firewall Type"] in fw_opts else 0,
+                    key=f"ed_fw_type_{edit_index}"
+                )
+            with ec2:
+                ed_fw_mbps = st.number_input("Firewall Bandwidth (Mbps)",
+                    min_value=0, max_value=100000,
+                    value=int(edit_item.get("Firewall Bandwidth (Mbps)", 0)),
+                    step=100, key=f"ed_fw_mbps_{edit_index}"
+                )
+            new_fw_cost = round(FIREWALL_PRICES.get(ed_fw_type, 0) * ed_fw_mbps, 2) if ed_fw_type != "None" else 0
+            st.caption(f"New estimated cost: {format_inr(new_fw_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "Firewall Type": ed_fw_type,
+                    "Firewall Bandwidth (Mbps)": ed_fw_mbps,
+                    "Firewall Cost (INR)": new_fw_cost,
+                    "Line Total (INR)": new_fw_cost,
+                })
+                updated = True
+
+        # ── License ──
+        elif edit_bucket == "License":
+            ec1, ec2 = st.columns(2)
+            lic_el_opts = ["None", "Windows Server", "Linux", "MS SQL", "MySQL", "PostgreSQL", "Commvault Backup License"]
+            lic_sub_opts = list(LICENSE_PRICES.keys())
+            with ec1:
+                ed_lic_el = st.selectbox("Element (License)", lic_el_opts,
+                    index=lic_el_opts.index(edit_item["License Element"])
+                    if edit_item["License Element"] in lic_el_opts else 0,
+                    key=f"ed_lic_el_{edit_index}"
+                )
+                ed_lic_sub = st.selectbox("Sub Type", lic_sub_opts,
+                    index=lic_sub_opts.index(edit_item["License Sub Type"])
+                    if edit_item["License Sub Type"] in lic_sub_opts else 0,
+                    key=f"ed_lic_sub_{edit_index}"
+                )
+            with ec2:
+                lic_unit_opts = ["# of Licenses", "per vCore", "per 2 pCore", "per DB", "per GB"]
+                ed_lic_unit = st.selectbox("Unit", lic_unit_opts, key=f"ed_lic_unit_{edit_index}")
+                ed_lic_qty = st.number_input("Quantity",
+                    min_value=0, max_value=100000,
+                    value=int(edit_item.get("License Qty", 0)),
+                    step=1, key=f"ed_lic_qty_{edit_index}"
+                )
+            new_lic_cost = round(LICENSE_PRICES.get(ed_lic_sub, 0) * ed_lic_qty, 2) if ed_lic_sub != "None" else 0
+            st.caption(f"New estimated cost: {format_inr(new_lic_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "License Element": ed_lic_el,
+                    "License Sub Type": ed_lic_sub,
+                    "License Qty": ed_lic_qty,
+                    "License Cost (INR)": new_lic_cost,
+                    "Line Total (INR)": new_lic_cost,
+                })
+                updated = True
+
+        # ── Backup Storage ──
+        elif edit_bucket == "Backup Storage":
+            ec1, ec2 = st.columns(2)
+            bk_model_opts = ["None", "Value Based", "Resilient", "Geo-Resilient"]
+            bk_el_opts = ["None", "ICS", "BET"]
+            bk_make_opts = ["None", "BET", "Commvault"]
+            bk_cfg_opts = ["None", "Object-Resilient", "Object-Value", "Block"]
+            with ec1:
+                ed_bk_el = st.selectbox("Element", bk_el_opts, key=f"ed_bk_el_{edit_index}")
+                ed_bk_make = st.selectbox("Make", bk_make_opts, key=f"ed_bk_make_{edit_index}")
+                ed_bk_model = st.selectbox("Model", bk_model_opts,
+                    index=bk_model_opts.index(edit_item["Backup Storage Model"])
+                    if edit_item["Backup Storage Model"] in bk_model_opts else 0,
+                    key=f"ed_bk_model_{edit_index}"
+                )
+            with ec2:
+                ed_bk_cfg = st.selectbox("Storage Config", bk_cfg_opts, key=f"ed_bk_cfg_{edit_index}")
+                ed_bk_unit = st.selectbox("Unit", ["GB", "TB"], key=f"ed_bk_unit_{edit_index}")
+                ed_bk_qty = st.number_input("Quantity (GB)",
+                    min_value=0, max_value=1000000,
+                    value=int(edit_item.get("Backup Storage (GB)", 0)),
+                    step=100, key=f"ed_bk_qty_{edit_index}"
+                )
+            bk_price_map = {"Value Based": 1.826923, "Resilient": 3.425481, "Geo-Resilient": 3.882212}
+            new_bk_cost = round(bk_price_map.get(ed_bk_model, 0) * ed_bk_qty, 2) if ed_bk_model != "None" else 0
+            st.caption(f"New estimated cost: {format_inr(new_bk_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "Backup Storage Model": ed_bk_model,
+                    "Backup Storage (GB)": ed_bk_qty,
+                    "Backup Storage Cost (INR)": new_bk_cost,
+                    "Line Total (INR)": new_bk_cost,
+                })
+                updated = True
+
+        # ── Management ──
+        elif edit_bucket == "Management":
+            ec1, ec2 = st.columns(2)
+            mg_el_opts = ["None", "OS-Management", "DB Management", "Firewall Management"]
+            mg_unit_opts = ["VM", "DB", "Firewall"]
+            with ec1:
+                ed_mg_el = st.selectbox("Element", mg_el_opts,
+                    index=mg_el_opts.index(edit_item["Management Type"])
+                    if edit_item["Management Type"] in mg_el_opts else 0,
+                    key=f"ed_mg_el_{edit_index}"
+                )
+                ed_mg_desc = st.text_input("Description", value="", key=f"ed_mg_desc_{edit_index}")
+            with ec2:
+                ed_mg_unit = st.selectbox("Unit", mg_unit_opts, key=f"ed_mg_unit_{edit_index}")
+                ed_mg_qty = st.number_input("Quantity",
+                    min_value=0, max_value=500,
+                    value=int(edit_item.get("Management Qty", 0)),
+                    step=1, key=f"ed_mg_qty_{edit_index}"
+                )
+            mg_price_map = {"OS-Management": 500, "DB Management": 6500, "Firewall Management": 2000}
+            new_mg_cost = round(mg_price_map.get(ed_mg_el, 0) * ed_mg_qty, 2) if ed_mg_el != "None" else 0
+            st.caption(f"New estimated cost: {format_inr(new_mg_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "Management Type": ed_mg_el,
+                    "Management Qty": ed_mg_qty,
+                    "Management Cost (INR)": new_mg_cost,
+                    "Line Total (INR)": new_mg_cost,
+                })
+                updated = True
+
+        # ── Miscellaneous ──
+        elif edit_bucket == "Misc":
+            ec1, ec2 = st.columns(2)
+            mi_el_opts = ["None", "IP", "Space", "Power", "Support", "Tenant", "Wire", "Cross Connect", "Switch Port"]
+            mi_unit_opts = ["None", "IPs", "U", "KWH", "Sessions", "Gig", "Wire"]
+            with ec1:
+                ed_mi_el = st.selectbox("Element", mi_el_opts,
+                    index=mi_el_opts.index(edit_item["Misc Element"])
+                    if edit_item["Misc Element"] in mi_el_opts else 0,
+                    key=f"ed_mi_el_{edit_index}"
+                )
+                ed_mi_desc = st.text_input("Description", value="", key=f"ed_mi_desc_{edit_index}")
+            with ec2:
+                ed_mi_unit = st.selectbox("Unit", mi_unit_opts, key=f"ed_mi_unit_{edit_index}")
+                ed_mi_qty = st.number_input("Quantity",
+                    min_value=0, max_value=10000,
+                    value=int(edit_item.get("Misc Qty", 0)),
+                    step=1, key=f"ed_mi_qty_{edit_index}"
+                )
+                ed_mi_price = st.number_input("Price per Unit (INR)",
+                    min_value=0.0,
+                    value=float(edit_item.get("Misc Cost (INR)", 0) / edit_item.get("Misc Qty", 1))
+                    if edit_item.get("Misc Qty", 0) > 0 else 0.0,
+                    step=100.0, key=f"ed_mi_price_{edit_index}"
+                )
+            new_mi_cost = round(ed_mi_price * ed_mi_qty, 2)
+            st.caption(f"New estimated cost: {format_inr(new_mi_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "Misc Element": ed_mi_el,
+                    "Misc Qty": ed_mi_qty,
+                    "Misc Cost (INR)": new_mi_cost,
+                    "Line Total (INR)": new_mi_cost,
+                })
+                updated = True
+
+        # ── Network Element ──
+        elif edit_bucket == "Network Element":
+            ec1, ec2 = st.columns(2)
+            ne_el_opts = ["None", "Virtual Network"]
+            ne_unit_opts = ["None", "Qty", "Port", "Gig"]
+            with ec1:
+                ed_ne_el = st.selectbox("Element", ne_el_opts,
+                    index=ne_el_opts.index(edit_item["Network Element Type"])
+                    if edit_item["Network Element Type"] in ne_el_opts else 0,
+                    key=f"ed_ne_el_{edit_index}"
+                )
+                ed_ne_desc = st.text_input("Description", value="", key=f"ed_ne_desc_{edit_index}")
+            with ec2:
+                ed_ne_unit = st.selectbox("Unit", ne_unit_opts, key=f"ed_ne_unit_{edit_index}")
+                ed_ne_qty = st.number_input("Quantity",
+                    min_value=0, max_value=100,
+                    value=0, step=1, key=f"ed_ne_qty_{edit_index}"
+                )
+            new_ne_cost = NETWORK_ELEMENT_PRICES.get(ed_ne_el, 0)
+            st.caption(f"New estimated cost: {format_inr(new_ne_cost)} / month")
+
+            if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
+                edit_item.update({
+                    "Network Element Type": ed_ne_el,
+                    "Network Element Cost (INR)": new_ne_cost,
+                    "Line Total (INR)": new_ne_cost,
+                })
+                updated = True
+
+        if updated:
+            st.session_state.quote_items[edit_index] = edit_item
+            st.success("✅ Item updated successfully!")
+            st.rerun()
 
     with st.expander("Remove item from quote"):
         remove_options = [
