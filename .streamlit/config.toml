@@ -5,3 +5,15 @@ backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#EFF6FF"
 textColor = "#1B3A6B"
 font = "sans serif"
+
+[server]
+maxUploadSize = 5
+
+[runner]
+fastReruns = true
+
+[client]
+showErrorDetails = false
+
+[browser]
+gatherUsageStats = false

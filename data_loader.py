@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import streamlit as st
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "Training_data.xlsx")
 
@@ -23,11 +24,13 @@ OLVM_OS_COLUMNS = {
 }
 
 
+@st.cache_data
 def load_raw_data():
     df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
     return df
 
 
+@st.cache_data
 def load_vayu_cloud():
     df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
     rows = []
@@ -53,6 +56,7 @@ def load_vayu_cloud():
     return pd.DataFrame(rows)
 
 
+@st.cache_data
 def load_hana_grid():
     df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
     rows = []
@@ -76,6 +80,7 @@ def load_hana_grid():
     return pd.DataFrame(rows)
 
 
+@st.cache_data
 def load_olvm():
     df = pd.read_excel(DATA_PATH, sheet_name="Sheet1", header=None)
     rows = []
@@ -99,21 +104,25 @@ def load_olvm():
     return pd.DataFrame(rows)
 
 
+@st.cache_data
 def get_vayu_flavours():
     df = load_vayu_cloud()
     return sorted(df["Flavour"].tolist())
 
 
+@st.cache_data
 def get_hana_flavours():
     df = load_hana_grid()
     return sorted(df["Flavour"].tolist())
 
 
+@st.cache_data
 def get_olvm_flavours():
     df = load_olvm()
     return sorted(df["Flavour"].tolist())
 
 
+@st.cache_data
 def get_vayu_row(flavour):
     df = load_vayu_cloud()
     result = df[df["Flavour"] == flavour]
@@ -122,6 +131,7 @@ def get_vayu_row(flavour):
     return result.iloc[0]
 
 
+@st.cache_data
 def get_hana_row(flavour):
     df = load_hana_grid()
     result = df[df["Flavour"] == flavour]
@@ -130,6 +140,7 @@ def get_hana_row(flavour):
     return result.iloc[0]
 
 
+@st.cache_data
 def get_olvm_row(flavour):
     df = load_olvm()
     result = df[df["Flavour"] == flavour]
