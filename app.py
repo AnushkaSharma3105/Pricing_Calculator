@@ -1740,17 +1740,20 @@ if st.session_state.quote_items:
     st.markdown('<div class="section-title">📊 Quotation Results</div>',
                 unsafe_allow_html=True)
 
-    save_current_quotation_history(
-        quotation_id=qid,
-        user_email=st.session_state.user.get("email"),
-        customer_name=st.session_state.customer_name,
-        company_name=st.session_state.company_name,
-        quote_items=items,
-        last_config=st.session_state.last_config,
-        result=st.session_state.result,
-        grand_total=grand_total,
-    )
-    st.session_state.history_saved_for_qid = qid
+    try:
+        save_current_quotation_history(
+            quotation_id=qid,
+            user_email=st.session_state.user.get("email"),
+            customer_name=st.session_state.customer_name,
+            company_name=st.session_state.company_name,
+            quote_items=items,
+            last_config=st.session_state.last_config,
+            result=st.session_state.result,
+            grand_total=grand_total,
+        )
+        st.session_state.history_saved_for_qid = qid
+    except Exception:
+        pass
 
     
 
@@ -2259,17 +2262,20 @@ elif st.session_state.result:
     st.markdown('<div class="section-title">📊 Latest Configuration</div>',
                 unsafe_allow_html=True)
 
-    save_current_quotation_history(
-        quotation_id=qid,
-        user_email=st.session_state.user.get("email"),
-        customer_name=st.session_state.customer_name,
-        company_name=st.session_state.company_name,
-        quote_items=st.session_state.quote_items,
-        last_config=st.session_state.last_config,
-        result=st.session_state.result,
-        grand_total=result.get('Grand Total', 0),
-    )
-    st.session_state.history_saved_for_qid = qid
+    try:
+        save_current_quotation_history(
+            quotation_id=qid,
+            user_email=st.session_state.user.get("email"),
+            customer_name=st.session_state.customer_name,
+            company_name=st.session_state.company_name,
+            quote_items=st.session_state.quote_items,
+            last_config=st.session_state.last_config,
+            result=st.session_state.result,
+            grand_total=result.get('Grand Total', 0),
+        )
+        st.session_state.history_saved_for_qid = qid
+    except Exception:
+        pass
 
     st.markdown(f"""
     <div class="price-box">

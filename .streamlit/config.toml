@@ -14,7 +14,7 @@ maxMessageSize = 50
 fastReruns = true
 
 [client]
-showErrorDetails = false
+showErrorDetails = true
 
 [browser]
 gatherUsageStats = false
