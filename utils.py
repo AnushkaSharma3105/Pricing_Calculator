@@ -12,78 +12,74 @@ LOGO_DISPLAY_HEIGHT_PX = 42  # embedded logo height; width keeps aspect ratio
 BOQ_COL_WIDTHS = [22, 18, 20, 22, 10, 12, 14, 20, 8, 28, 22]
 
 
+def _export_int_if_whole(value):
+    """Format Quantity/Storage Size values for export as whole numbers (no decimals)
+    when they represent whole numbers, e.g. 1.00 -> 1, 50.00 -> 50.
+    Leaves non-numeric or non-whole values untouched. Export-formatting only;
+    does not affect stored/calculated values.
+    """
+    if isinstance(value, bool):
+        return value
+    try:
+        if isinstance(value, (int, float)):
+            f = float(value)
+            if f.is_integer():
+                return int(f)
+        elif isinstance(value, str) and value.strip() != "":
+            f = float(value)
+            if f.is_integer():
+                return int(f)
+    except (ValueError, TypeError):
+        pass
+    return value
+
+
 def get_logo_base64():
     """Return base64-encoded TTBS logo for inline HTML display."""
     if LOGO_PATH.exists():
         return base64.b64encode(LOGO_PATH.read_bytes()).decode()
     return ""
 
+def to_whole_number(value):
+    """Convert float to int if it's a whole number, useful for display/exports."""
+    if isinstance(value, (int, float)):
+        try:
+            f = float(value)
+            if f.is_integer():
+                return int(f)
+        except (ValueError, TypeError):
+            pass
+    return value
+
+    return _embed_logo_at_top(output.getvalue(), "BOQ")
+
+
+def enforce_integer_columns(df):
+    """Force all quantity/storage/bandwidth columns to be clean whole numbers (no .00)"""
+    if df is None or (isinstance(df, pd.DataFrame) and df.empty):
+        return df
+
+    df = df.copy()
+
+    integer_cols = [
+        "S.No.", "Quantity", "vCPU", "RAM (GB)", "Storage (GB)", "Backup (GB)",
+        "Public IPs", "Bandwidth (Mbps)", "Firewall Bandwidth (Mbps)",
+        "License Qty", "Backup Storage (GB)", "Management Qty", "Misc Qty"
+    ]
+
+    for col in integer_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(_export_int_if_whole)
+
+    for col in df.columns:
+        if any(x in col for x in ["Qty", "GB", "Mbps", "S.No.", "Public IPs"]):
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).apply(_export_int_if_whole)
+
+    return df
 
 def format_inr(amount):
     """Format number as Indian Rupees"""
     return f"₹ {amount:,.2f}"
-
-
-# Columns that represent user-entered input QUANTITIES (vCPU, RAM, Storage,
-# Bandwidth, Quantity, Backup Size, Public IPs, etc.). These must always be
-# whole numbers. This list intentionally excludes any price / cost / total
-# columns, which must keep their decimal precision.
-INTEGER_QUANTITY_COLUMNS = [
-    "S.No.",
-    "Storage (GB)",
-    "Backup (GB)",
-    "Firewall Bandwidth (Mbps)",
-    "Public IPs",
-    "Quantity",
-    "vCPU",
-    "RAM (GB)",
-    "Bandwidth (Mbps)",
-    "License Qty",
-    "Backup Storage (GB)",
-    "Management Qty",
-    "Misc Qty",
-    "Root Disk (GB)",
-    "Root Disk Windows (GB)",
-    "Root Disk Other OS (GB)",
-]
-
-
-def to_whole_number(value, default=0):
-    """Safely coerce a user-entered quantity value to an integer.
-
-    Any decimal value is rounded to the nearest whole number. Non-numeric
-    or missing values fall back to `default`. This is only ever used for
-    INPUT quantity fields, never for calculated price/total values.
-    """
-    if value is None or value == "":
-        return default
-    try:
-        if isinstance(value, str):
-            value = float(value)
-        if pd.isna(value):
-            return default
-        return int(round(float(value)))
-    except (ValueError, TypeError):
-        return default
-
-
-def enforce_integer_columns(df, columns=None):
-    """Return a copy of `df` where the given quantity columns are forced to
-    whole numbers, so mixed NaN/int columns don't get silently upcast to
-    float and display as e.g. '50.0'. Non-quantity (price/total) columns
-    are left completely untouched.
-    """
-    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
-        return df
-
-    columns = columns or INTEGER_QUANTITY_COLUMNS
-    df = df.copy()
-    for col in columns:
-        if col in df.columns:
-            df[col] = df[col].apply(
-                lambda v: to_whole_number(v) if str(v).strip() not in ("", "None") else v
-            )
-    return df
 
 
 def generate_quotation_id():
@@ -103,10 +99,14 @@ def build_summary_dataframe(product, flavour, specs, config, breakdown):
 
     # Specs
     for k, v in specs.items():
+        if "quantity" in k.lower() or "storage" in k.lower():
+            v = _export_int_if_whole(v)
         rows.append({"Component": k, "Details": str(v), "Amount (INR)": ""})
 
     # Config
     for k, v in config.items():
+        if "quantity" in k.lower() or "storage" in k.lower():
+            v = _export_int_if_whole(v)
         rows.append({"Component": k, "Details": str(v), "Amount (INR)": ""})
 
     # Blank separator
@@ -125,7 +125,7 @@ def build_summary_dataframe(product, flavour, specs, config, breakdown):
     rows.append({"Component": "", "Details": "", "Amount (INR)": ""})
     rows.append({
         "Component": "Quantity",
-        "Details": str(breakdown.get("Quantity", 1)),
+        "Details": str(_export_int_if_whole(breakdown.get("Quantity", 1))),
         "Amount (INR)": ""
     })
     rows.append({
@@ -337,7 +337,6 @@ def build_quote_export_dataframe(items):
         })
 
     df = pd.DataFrame(rows)
-    df = enforce_integer_columns(df)
     return df
 
 
@@ -350,7 +349,6 @@ def normalize_quote_dataframe(df):
     for col in template.columns:
         if col not in normalized.columns:
             normalized[col] = template[col].iloc[0]
-    normalized = enforce_integer_columns(normalized)
     return normalized
 
 
@@ -402,7 +400,7 @@ def export_quote_to_csv(df, grand_total=None):
         lines.append(
             f"{row.get('Element','ICS')},{row.get('Hypervisor','Open Stack')},Prod,"
             f"{row.get('Operating System','')},{row.get('vCPU','')},{row.get('RAM (GB)','')},"
-            f",{row.get('Storage (GB)',0)},{row.get('Quantity',1)},{row.get('Storage Type','')},"
+            f",{_export_int_if_whole(row.get('Storage (GB)',0))},{_export_int_if_whole(row.get('Quantity',1))},{row.get('Storage Type','')},"
             f"{row.get('Line Total (INR)',0)}"
         )
     lines.append("")
@@ -415,7 +413,7 @@ def export_quote_to_csv(df, grand_total=None):
         for _, row in lic_rows.iterrows():
             lines.append(
                 f"{row.get('License Element','')},{row.get('License Sub Type','')},,"
-                f",{row.get('License Qty',0)},,{row.get('License Cost (INR)',0)}"
+                f",{_export_int_if_whole(row.get('License Qty',0))},,{row.get('License Cost (INR)',0)}"
             )
     else:
         lines.append(",,,,,,,,")
@@ -429,7 +427,7 @@ def export_quote_to_csv(df, grand_total=None):
         for _, row in bk_rows.iterrows():
             lines.append(
                 f"{row.get('Element','ICS')},BET,{row.get('Backup Storage Model','')},"
-                f"Object-Resilient,,GB,{row.get('Backup Storage (GB)',0)},,"
+                f"Object-Resilient,,GB,{_export_int_if_whole(row.get('Backup Storage (GB)',0))},,"
                 f"{row.get('Backup Storage Cost (INR)',0)}"
             )
     else:
@@ -457,7 +455,7 @@ def export_quote_to_csv(df, grand_total=None):
     if not mg_rows.empty:
         for _, row in mg_rows.iterrows():
             lines.append(
-                f"{row.get('Management Type','')},,,{row.get('Management Qty',0)},,"
+                f"{row.get('Management Type','')},,,{_export_int_if_whole(row.get('Management Qty',0))},,"
                 f"{row.get('Management Cost (INR)',0)}"
             )
     else:
@@ -471,7 +469,7 @@ def export_quote_to_csv(df, grand_total=None):
     if not mi_rows.empty:
         for _, row in mi_rows.iterrows():
             lines.append(
-                f"{row.get('Misc Element','')},,,{row.get('Misc Qty',0)},,"
+                f"{row.get('Misc Element','')},,,{_export_int_if_whole(row.get('Misc Qty',0))},,"
                 f"{row.get('Misc Cost (INR)',0)}"
             )
     else:
@@ -488,6 +486,7 @@ def export_quote_to_csv(df, grand_total=None):
 def export_quote_to_excel(df, quotation_id, grand_total):
     """Export in BOQ format as Excel matching OUTPUT_FORMAT.xlsx structure"""
     df = normalize_quote_dataframe(df)
+    df = enforce_integer_columns(df)
     output = io.BytesIO()
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -579,10 +578,15 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             for c, h in enumerate(headers):
                 ws.write(r, c, h, header_fmt)
             return r + 1
-
         def write_data_row(ws, r, values, fmts=None):
             for c, v in enumerate(values):
-                fmt = fmts[c] if fmts and c < len(fmts) else (number_fmt if isinstance(v, (int, float)) else data_fmt)
+                # Use integer format for whole numbers (Qty, GB, vCPU, etc.)
+                if isinstance(v, (int, float)) and float(v).is_integer():
+                    fmt = sno_fmt if c == 0 else workbook.add_format({
+                        "border": 1, "num_format": "0"
+                    })
+                else:
+                    fmt = fmts[c] if fmts and c < len(fmts) else (number_fmt if isinstance(v, (int, float)) else data_fmt)
                 ws.write(r, c, v, fmt)
             return r + 1
         
@@ -658,8 +662,8 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 r2.get("vCPU", ""),
                 r2.get("RAM (GB)", ""),
                 "",
-                r2.get("Storage (GB)", 0),
-                r2.get("Quantity", 1),
+                _export_int_if_whole(r2.get("Storage (GB)", 0)),
+                _export_int_if_whole(r2.get("Quantity", 1)),
                 r2.get("Storage Type", ""),
                 r2.get("Line Total (INR)", 0),
             ]
@@ -682,7 +686,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     "", "", "", "",
                     "# of Licenses",
-                    r2.get("License Qty", 0),
+                    _export_int_if_whole(r2.get("License Qty", 0)),
                     "",
                     r2.get("License Cost (INR)", 0),
                 ]
@@ -709,7 +713,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     "", "",
                     "GB",
-                    r2.get("Backup Storage (GB)", 0),
+                    _export_int_if_whole(r2.get("Backup Storage (GB)", 0)),
                     "",
                     r2.get("Backup Storage Cost (INR)", 0),
                 ]
@@ -753,7 +757,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     r2.get("Management Type", ""),
                     "", "", "", "", "", "",
                     "",
-                    r2.get("Management Qty", 0),
+                    _export_int_if_whole(r2.get("Management Qty", 0)),
                     "",
                     r2.get("Management Cost (INR)", 0),
                 ]
@@ -776,7 +780,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     r2.get("Misc Element", ""),
                     "", "", "", "", "", "",
                     "",
-                    r2.get("Misc Qty", 0),
+                    _export_int_if_whole(r2.get("Misc Qty", 0)),
                     "",
                     r2.get("Misc Cost (INR)", 0),
                 ]
