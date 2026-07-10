@@ -14,7 +14,8 @@ from pricing_engine import (
 from utils import (
     format_inr, generate_quotation_id, get_logo_base64,
     build_summary_dataframe, export_to_csv, export_to_excel,
-    build_quote_export_dataframe, export_quote_to_csv, export_quote_to_excel
+    build_quote_export_dataframe, export_quote_to_csv, export_quote_to_excel,
+    enforce_integer_columns, to_whole_number
 )
 from auth import init_db
 from history_db import init_quote_history_db, save_quotation_history
@@ -1760,6 +1761,12 @@ if st.session_state.quote_items:
     st.markdown("**📦 Added Configurations**")
     quote_df = pd.DataFrame(items)
     quote_df.insert(0, "S.No.", range(1, len(quote_df) + 1))
+    # Quantity-type input columns (vCPU, RAM, Storage, Bandwidth, Quantity,
+    # Backup Size, Public IPs, etc.) must always render as whole numbers.
+    # Mixing rows that omit a field (NaN) with rows that set it can silently
+    # upcast an integer column to float64 (e.g. "50.0"), so we re-normalize
+    # here. Price/cost/total columns are untouched.
+    quote_df = enforce_integer_columns(quote_df)
     display_cols = [
         "S.No.",
         "Category",

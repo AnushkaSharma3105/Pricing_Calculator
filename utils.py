@@ -24,6 +24,68 @@ def format_inr(amount):
     return f"₹ {amount:,.2f}"
 
 
+# Columns that represent user-entered input QUANTITIES (vCPU, RAM, Storage,
+# Bandwidth, Quantity, Backup Size, Public IPs, etc.). These must always be
+# whole numbers. This list intentionally excludes any price / cost / total
+# columns, which must keep their decimal precision.
+INTEGER_QUANTITY_COLUMNS = [
+    "S.No.",
+    "Storage (GB)",
+    "Backup (GB)",
+    "Firewall Bandwidth (Mbps)",
+    "Public IPs",
+    "Quantity",
+    "vCPU",
+    "RAM (GB)",
+    "Bandwidth (Mbps)",
+    "License Qty",
+    "Backup Storage (GB)",
+    "Management Qty",
+    "Misc Qty",
+    "Root Disk (GB)",
+    "Root Disk Windows (GB)",
+    "Root Disk Other OS (GB)",
+]
+
+
+def to_whole_number(value, default=0):
+    """Safely coerce a user-entered quantity value to an integer.
+
+    Any decimal value is rounded to the nearest whole number. Non-numeric
+    or missing values fall back to `default`. This is only ever used for
+    INPUT quantity fields, never for calculated price/total values.
+    """
+    if value is None or value == "":
+        return default
+    try:
+        if isinstance(value, str):
+            value = float(value)
+        if pd.isna(value):
+            return default
+        return int(round(float(value)))
+    except (ValueError, TypeError):
+        return default
+
+
+def enforce_integer_columns(df, columns=None):
+    """Return a copy of `df` where the given quantity columns are forced to
+    whole numbers, so mixed NaN/int columns don't get silently upcast to
+    float and display as e.g. '50.0'. Non-quantity (price/total) columns
+    are left completely untouched.
+    """
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return df
+
+    columns = columns or INTEGER_QUANTITY_COLUMNS
+    df = df.copy()
+    for col in columns:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda v: to_whole_number(v) if str(v).strip() not in ("", "None") else v
+            )
+    return df
+
+
 def generate_quotation_id():
     """Generate a unique quotation ID based on timestamp"""
     now = datetime.now()
@@ -275,6 +337,7 @@ def build_quote_export_dataframe(items):
         })
 
     df = pd.DataFrame(rows)
+    df = enforce_integer_columns(df)
     return df
 
 
@@ -287,6 +350,7 @@ def normalize_quote_dataframe(df):
     for col in template.columns:
         if col not in normalized.columns:
             normalized[col] = template[col].iloc[0]
+    normalized = enforce_integer_columns(normalized)
     return normalized
 
 
