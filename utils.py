@@ -51,7 +51,7 @@ def to_whole_number(value):
             pass
     return value
 
-    return _embed_logo_at_top(output.getvalue(), "BOQ")
+    
 
 
 def enforce_integer_columns(df):
