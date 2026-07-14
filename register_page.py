@@ -19,7 +19,7 @@ def show_register():
     <div style="max-width:420px; margin:40px auto 0 auto;">
     <div class="card" style="padding:36px;">
         <h2 style="color:#1B3A6B; margin-bottom:4px;">🚀 Create Account</h2>
-        <p style="color:#64748B; margin-bottom:24px;">Join AetherPrice today</p>
+        <p style="color:#64748B; margin-bottom:24px;">Join VayuPrice Calculator today</p>
     </div>
     </div>
     """, unsafe_allow_html=True)

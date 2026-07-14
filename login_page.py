@@ -47,7 +47,7 @@ def show_login():
     </style>
     <div class="top-left-logo">
         <img src="data:image/png;base64,{logo_base64}">
-        <div class="brand-text">AetherPrice</div>
+        <div class="brand-text">VayuPrice Calculator</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -55,7 +55,7 @@ def show_login():
     <div style="max-width:420px; margin:60px auto 0 auto;">
     <div class="card" style="padding:36px;">
         <h2 style="color:#1B3A6B; margin-bottom:4px;">👋 Welcome Back</h2>
-        <p style="color:#64748B; margin-bottom:24px;">Sign in to AetherPrice</p>
+        <p style="color:#64748B; margin-bottom:24px;">Sign in to VayuPrice Calculator</p>
     </div>
     </div>
     """, unsafe_allow_html=True)

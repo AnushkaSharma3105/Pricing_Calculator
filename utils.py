@@ -256,7 +256,7 @@ def export_to_excel(df, product, flavour, quotation_id):
 
         _reserve_logo_rows(worksheet)
 
-        worksheet.merge_range(LOGO_TOP_ROWS, 0, LOGO_TOP_ROWS, 2, "PRICE QUOTATION", title_fmt)
+        worksheet.merge_range(LOGO_TOP_ROWS, 0, LOGO_TOP_ROWS, 2, "PRICE QUOTATION - VayuPrice Calculator", title_fmt)
         worksheet.write(LOGO_TOP_ROWS + 1, 0, f"Quotation ID: {quotation_id}", subtitle_fmt)
         worksheet.write(LOGO_TOP_ROWS + 2, 0, f"Product: {product}  |  Flavour: {flavour}", subtitle_fmt)
         worksheet.write(
@@ -357,7 +357,7 @@ def export_quote_to_csv(df, grand_total=None):
     df = normalize_quote_dataframe(df)
     lines = []
 
-    lines.append("PRICE QUOTATION - AetherPrice")
+    lines.append("PRICE QUOTATION - VayuPrice Calculator")
     lines.append("")
     lines.append("Account Manager,,BD,,Solution Architect,,")
     lines.append("Service Model,IPC,Contract,,IDC Location,,")
@@ -554,7 +554,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         _reserve_logo_rows(worksheet)
 
         row = LOGO_TOP_ROWS
-        worksheet.merge_range(row, 0, row, 11, "PRICE QUOTATION", title_fmt)
+        worksheet.merge_range(row, 0, row, 11, "PRICE QUOTATION - VayuPrice Calculator", title_fmt)
         row += 1
         worksheet.write(row, 0, f"Quotation ID: {quotation_id}", subtitle_fmt)
         row += 1

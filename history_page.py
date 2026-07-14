@@ -97,7 +97,7 @@ def show_cart():
             st.download_button(
                 label="Download Excel",
                 data=excel_data,
-                file_name=f"quotation_{history['quotation_id']}.xlsx",
+                file_name=f"VayuPrice_{st.session_state.user.get('full_name', 'User').replace(' ', '_')}_{history['quotation_id']}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"excel_{quote['id']}",
                 use_container_width=True
@@ -105,7 +105,7 @@ def show_cart():
             st.download_button(
                 label="Download CSV",
                 data=csv_data,
-                file_name=f"quotation_{history['quotation_id']}.csv",
+                file_name=f"VayuPrice_{st.session_state.user.get('full_name', 'User').replace(' ', '_')}_{history['quotation_id']}.csv",
                 mime="text/csv",
                 key=f"csv_{quote['id']}",
                 use_container_width=True

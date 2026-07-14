@@ -73,7 +73,7 @@ PUBLIC_IP_PRICE_CONNECTIVITY = 900  # from master file Connectivity sheet
 # PAGE CONFIG
 
 st.set_page_config(
-    page_title="AetherPrice",
+    page_title="VayuPrice Calculator",
     page_icon="☁️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -623,7 +623,7 @@ with nav_cols[0]:
         f"<div class='ttbs-nav-brand'>"
         f"{logo_html}"
         f"<span class='ttbs-nav-title'>"
-        f"☁️ AetherPrice &nbsp;|&nbsp; "
+        f"☁️ VayuPrice Calculator &nbsp;|&nbsp; "
         f"<span class='ttbs-nav-greeting'>Hi, {user['full_name'].split()[0]}!</span>"
         f"</span></div>",
         unsafe_allow_html=True
@@ -719,7 +719,7 @@ with st.sidebar:
 
 st.markdown("""
 <div class="card">
-    <h2 style="margin:0; color:#1B3A6B;"> AetherPrice </h2>
+    <h2 style="margin:0; color:#1B3A6B;"> VayuPrice Calculator </h2>
     <h4 style="margin:0; color: #4D516D;"> ☁️ Cloud Infrastructure Price Calculator </h4>
     <p style="margin:4px 0 0 0; color:#64748B;">
         Tata TeleServices · India Region · All prices in INR per month
@@ -1824,8 +1824,27 @@ if st.session_state.quote_items:
         """,
         unsafe_allow_html=True,
     )
+    # Highlighted style for the edit expander
+    st.markdown("""
+    <style>
+    /* Target the expander immediately after our marker */
+    .edit-quote-marker + div[data-testid="stExpander"] {
+        background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+        border: 1.5px solid #FFD54F;
+        border-radius: 12px;
+        padding: 4px 12px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    .edit-quote-marker + div[data-testid="stExpander"] summary span {
+        font-weight: 600 !important;
+        color: #E65100 !important;
+    }
+    </style>
+    <div class="edit-quote-marker"></div>
+    """, unsafe_allow_html=True)
 
-    with st.expander("✏️ Edit an item (fix a wrong quantity / Mbps / GB)"):
+    with st.expander("✏️ Edit above quote (fix a wrong quantity / Mbps / GB)"):
         edit_options = [
             f"{index + 1}. {item.get('Category', 'Item')} — {format_inr(item.get('Line Total (INR)', 0))}"
             for index, item in enumerate(items)
@@ -2246,7 +2265,7 @@ if st.session_state.quote_items:
         st.download_button(
             label="📄 Download as CSV",
             data=csv_data,
-            file_name=f"quotation_{qid}.csv",
+            file_name=f"VayuPrice_{user['full_name'].replace(' ', '_')}_{qid}.csv",
             mime="text/csv",
             use_container_width=True
         )
@@ -2255,7 +2274,7 @@ if st.session_state.quote_items:
         st.download_button(
             label="📊 Download as Excel",
             data=excel_data,
-            file_name=f"quotation_{qid}.xlsx",
+            file_name=f"VayuPrice_{user['full_name'].replace(' ', '_')}_{qid}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
@@ -2332,7 +2351,7 @@ elif st.session_state.result:
         st.download_button(
             label="📄 Download as CSV",
             data=csv_data,
-            file_name=f"quotation_{qid}.csv",
+            file_name=f"VayuPrice_{user['full_name'].replace(' ', '_')}_{qid}.csv",
             mime="text/csv",
             use_container_width=True
         )
@@ -2345,7 +2364,7 @@ elif st.session_state.result:
         st.download_button(
             label="📊 Download as Excel",
             data=excel_data,
-            file_name=f"quotation_{qid}.xlsx",
+            file_name=f"VayuPrice_{user['full_name'].replace(' ', '_')}_{qid}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
