@@ -1395,18 +1395,9 @@ with st.expander("**📦 Miscellaneous Items**", expanded=False):
     mi_cost = mi_price_per_unit * mi_qty if mi_qty > 0 else 0
     st.info(f"Estimated Miscellaneous Cost: {format_inr(mi_cost)} / month")
 
-# Total additional services cost
-total_additional = ns_cost + firewall_cost + lic_cost + bk_cost + ne_cost + mg_cost + mi_cost
-if total_additional > 0:
-    st.markdown(f"""
-    <div style="background: rgba(255,255,255,0.85); border-radius:10px;
-                padding:14px 20px; border-left: 4px solid #2563EB; margin-top:8px;">
-        <b style="color:#1B3A6B;">Total Additional Services Cost:</b>
-        <span style="color:#2563EB; font-weight:700; font-size:1.1rem;">
-            &nbsp;{format_inr(total_additional)} / month
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+    # Total additional services cost (calculated but not displayed)
+    total_additional = ns_cost + firewall_cost + lic_cost + bk_cost + ne_cost + mg_cost + mi_cost
+
 
 st.markdown("---")
 
