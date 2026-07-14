@@ -537,7 +537,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             "font_color": "#856404", "border": 1
         })
 
-        boq_col_widths = [8, 22, 18, 20, 22, 10, 12, 14, 20, 8, 28, 22]
+        boq_col_widths = [8, 22, 18, 20, 22, 10, 12, 14, 20, 8, 28]
         worksheet.set_column("A:A", boq_col_widths[0])
         worksheet.set_column("B:B", boq_col_widths[1])
         worksheet.set_column("C:C", boq_col_widths[2])
@@ -549,12 +549,11 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         worksheet.set_column("I:I", boq_col_widths[8])
         worksheet.set_column("J:J", boq_col_widths[9])
         worksheet.set_column("K:K", boq_col_widths[10])
-        worksheet.set_column("L:L", boq_col_widths[11])
 
         _reserve_logo_rows(worksheet)
 
         row = LOGO_TOP_ROWS
-        worksheet.merge_range(row, 0, row, 11, "PRICE QUOTATION - VayuPrice Calculator", title_fmt)
+        worksheet.merge_range(row, 0, row, 10, "PRICE QUOTATION - VayuPrice Calculator", title_fmt)
         row += 1
         worksheet.write(row, 0, f"Quotation ID: {quotation_id}", subtitle_fmt)
         row += 1
@@ -571,12 +570,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         row += 1
 
         def write_section_header(ws, r, title):
-            ws.merge_range(r, 0, r, 11, title, section_fmt)
+            ws.merge_range(r, 0, r, 10, title, section_fmt)
             return r + 1
 
         def write_col_headers(ws, r, headers):
             for c, h in enumerate(headers):
-                ws.write(r, c, h, header_fmt)
+                ws.write(r, c, h if h is not None else "", header_fmt)
             return r + 1
         def write_data_row(ws, r, values, fmts=None):
             for c, v in enumerate(values):
@@ -792,7 +791,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         
         # GRAND TOTAL ROW
         
-        worksheet.merge_range(row, 0, row, 10, "GRAND TOTAL", total_label_fmt)
-        worksheet.write(row, 11, grand_total, total_fmt)
+        worksheet.merge_range(row, 0, row, 9, "GRAND TOTAL", total_label_fmt)
+        worksheet.write(row, 10, grand_total, total_fmt)
 
     return _embed_logo_at_top(output.getvalue(), "BOQ")

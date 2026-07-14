@@ -2,6 +2,16 @@ import json
 from datetime import datetime
 import streamlit as st
 import pandas as pd
+import sys
+import importlib
+
+# Force reload local modules to prevent Streamlit caching issues
+for module_name in ["utils", "pricing_engine", "data_loader", "auth", "history_db", "login_page", "register_page", "profile_page", "history_page", "admin_page"]:
+    if module_name in sys.modules:
+        try:
+            importlib.reload(sys.modules[module_name])
+        except Exception:
+            pass
 from data_loader import (
     get_vayu_flavours, get_hana_flavours, get_olvm_flavours
 )
@@ -855,6 +865,18 @@ if product == "Vayu Cloud":
         "Public IPs": public_ips,
     }
 
+    try:
+        vayu_calc = calculate_vayu_price(
+            flavour, os_type, pricing_tier, quantity,
+            storage_type if storage_type != "None" else "None",
+            storage_gb, backup_type, backup_gb,
+            "None", public_ips
+        )
+        if vayu_calc and "Grand Total" in vayu_calc:
+            st.info(f"Estimated VM Cost: {format_inr(vayu_calc['Grand Total'])} / month")
+    except Exception as e:
+        pass
+
 
 # HANA GRID FORM
 
@@ -929,6 +951,17 @@ elif product == "Hana Grid":
         "Backup (GB)": backup_gb,
     }
 
+    try:
+        hana_calc = calculate_hana_price(
+            flavour, os_type, pricing_tier, quantity,
+            storage_type if storage_type != "None" else "None",
+            storage_gb, backup_type, backup_gb
+        )
+        if hana_calc and "Grand Total" in hana_calc:
+            st.info(f"Estimated VM Cost: {format_inr(hana_calc['Grand Total'])} / month")
+    except Exception as e:
+        pass
+
 
 # OLVM FORM
 
@@ -996,6 +1029,17 @@ elif product == "OLVM":
         "Backup Type": backup_type,
         "Backup (GB)": backup_gb,
     }
+
+    try:
+        olvm_calc = calculate_olvm_price(
+            flavour, pricing_tier, quantity,
+            storage_type if storage_type != "None" else "None",
+            storage_gb, backup_type, backup_gb
+        )
+        if olvm_calc and "Grand Total" in olvm_calc:
+            st.info(f"Estimated VM Cost: {format_inr(olvm_calc['Grand Total'])} / month")
+    except Exception as e:
+        pass
 
 
 # FLAVOUR SPECS PREVIEW
@@ -1072,6 +1116,13 @@ with st.expander("**🌐 Network & Security Services**", expanded=False):
             placeholder="e.g. Unlimited Download & Upload"
         )
 
+    # Calculate internet cost
+    ns_cost = 0
+    if ns_element != "None" and ns_bandwidth_mbps > 0 and ns_qty > 0:
+        ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ns_bandwidth_mbps * ns_qty
+
+    st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
+
     st.markdown("---")
     st.markdown("**🔥 Firewall**")
     fw_col1, fw_col2 = st.columns(2)
@@ -1095,17 +1146,11 @@ with st.expander("**🌐 Network & Security Services**", expanded=False):
     if ns_firewall == "None" and ns_firewall_mbps > 0:
         st.caption("⚠️ Select a Firewall Type above to include this bandwidth in the quote.")
 
-    # Calculate internet cost
-    ns_cost = 0
-    if ns_element != "None" and ns_bandwidth_mbps > 0 and ns_qty > 0:
-        ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ns_bandwidth_mbps * ns_qty
-
     # Calculate firewall cost (price per Mbps, based on firewall type selected)
     firewall_cost = 0
     if ns_firewall != "None" and ns_firewall_mbps > 0:
         firewall_cost = round(FIREWALL_PRICES.get(ns_firewall, 0) * ns_firewall_mbps, 2)
 
-    st.info(f"Estimated Network Cost: {format_inr(ns_cost)} / month")
     if ns_firewall != "None":
         st.info(f"Estimated Firewall Cost: {format_inr(firewall_cost)} / month")
 
