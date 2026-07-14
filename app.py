@@ -1121,7 +1121,7 @@ with st.expander("**🔐 Software & Licenses**", expanded=False):
             key="lic_element"
         )
         lic_subtype = st.selectbox(
-            "Sub Type",
+            "License Type",
             list(LICENSE_PRICES.keys()),
             key="lic_subtype"
         )
@@ -2071,7 +2071,7 @@ if st.session_state.quote_items:
                     if edit_item["License Element"] in lic_el_opts else 0,
                     key=f"ed_lic_el_{edit_index}"
                 )
-                ed_lic_sub = st.selectbox("Sub Type", lic_sub_opts,
+                ed_lic_sub = st.selectbox("License Type", lic_sub_opts,
                     index=lic_sub_opts.index(edit_item["License Sub Type"])
                     if edit_item["License Sub Type"] in lic_sub_opts else 0,
                     key=f"ed_lic_sub_{edit_index}"
