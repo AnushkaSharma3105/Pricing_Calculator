@@ -320,13 +320,13 @@ st.markdown("""
     .metric-card {
         background: rgba(255, 255, 255, 0.8);
         border-radius: 8px;
-        padding: 16px;
+        padding: 8px 12px;
         text-align: center;
         border: 1px solid #BFDBFE;
         backdrop-filter: blur(6px);
     }
-    .metric-card h3 { color: #1B3A6B; margin: 0; font-size: 1.4rem; }
-    .metric-card p  { color: #475569; margin: 4px 0; font-size: 0.85rem; }
+    .metric-card h3 { color: #1B3A6B; margin: 0; font-size: 1.1rem; }
+    .metric-card p  { color: #475569; margin: 2px 0 0 0; font-size: 0.75rem; }
 
     .success-banner {
         background: #D1FAE5; border-radius: 8px;
@@ -1827,18 +1827,32 @@ if st.session_state.quote_items:
     # Highlighted style for the edit expander
     st.markdown("""
     <style>
-    /* Target the expander immediately after our marker */
-    .edit-quote-marker + div[data-testid="stExpander"] {
-        background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
-        border: 1.5px solid #FFD54F;
-        border-radius: 12px;
-        padding: 4px 12px;
-        margin-top: 8px;
-        margin-bottom: 8px;
+    /* Traverses Streamlit's wrapper divs to target the expander immediately following the marker */
+    div[data-testid="stVerticalBlock"] > div:has(.edit-quote-marker) + div div[data-testid="stExpander"],
+    div[data-testid="element-container"]:has(.edit-quote-marker) + div[data-testid="element-container"] div[data-testid="stExpander"],
+    .element-container:has(.edit-quote-marker) + .element-container div[data-testid="stExpander"] {
+        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%) !important;
+        border: 3px solid #2563EB !important;
+        border-radius: 12px !important;
+        padding: 6px 14px !important;
+        margin-top: 12px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3) !important;
     }
-    .edit-quote-marker + div[data-testid="stExpander"] summary span {
-        font-weight: 600 !important;
-        color: #E65100 !important;
+    
+    /* Highlight the header/summary span text */
+    div[data-testid="stVerticalBlock"] > div:has(.edit-quote-marker) + div div[data-testid="stExpander"] summary span,
+    div[data-testid="element-container"]:has(.edit-quote-marker) + div[data-testid="element-container"] div[data-testid="stExpander"] summary span,
+    .element-container:has(.edit-quote-marker) + .element-container div[data-testid="stExpander"] summary span {
+        font-weight: 800 !important;
+        color: #1B3A6B !important;
+        font-size: 1.15em !important;
+    }
+    
+    /* Keep internal details content clean */
+    div[data-testid="stVerticalBlock"] > div:has(.edit-quote-marker) + div div[data-testid="stExpander"] details,
+    div[data-testid="element-container"]:has(.edit-quote-marker) + div[data-testid="element-container"] div[data-testid="stExpander"] details {
+        border: none !important;
     }
     </style>
     <div class="edit-quote-marker"></div>
