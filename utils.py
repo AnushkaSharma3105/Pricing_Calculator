@@ -77,6 +77,23 @@ def enforce_integer_columns(df):
 
     return df
 
+
+def enforce_currency_columns(df):
+    """Force all cost/price/total columns to display with exactly 2 decimal places,
+    e.g. 5000 -> 5000.00, so a mix of int and float values in the same column
+    (like Line Total (INR)) renders consistently in st.dataframe.
+    """
+    if df is None or (isinstance(df, pd.DataFrame) and df.empty):
+        return df
+
+    df = df.copy()
+
+    for col in df.columns:
+        if "(INR)" in col or col == "Line Total (INR)":
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0).round(2).astype(float)
+
+    return df
+
 def format_inr(amount):
     """Format number as Indian Rupees"""
     return f"₹ {amount:,.2f}"
@@ -219,10 +236,11 @@ def _reserve_logo_rows(worksheet):
         worksheet.set_row(r, 16)
 
 
-def export_to_excel(df, product, flavour, quotation_id):
+def export_to_excel(df, product, flavour, quotation_id, meta=None):
     """Export dataframe to Excel bytes with formatting"""
+    meta = meta or {}
     output = io.BytesIO()
-    title_rows = 4
+    title_rows = 6
     data_startrow = LOGO_TOP_ROWS + title_rows
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -264,6 +282,16 @@ def export_to_excel(df, product, flavour, quotation_id):
             f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}",
             subtitle_fmt,
         )
+        worksheet.write(
+            LOGO_TOP_ROWS + 4, 0,
+            f"Account Manager: {meta.get('account_manager', '')}  |  Solution Architect: {meta.get('solution_architect', '')}",
+            subtitle_fmt,
+        )
+        worksheet.write(
+            LOGO_TOP_ROWS + 5, 0,
+            f"Service Manager: {meta.get('service_manager', '')}  |  IDC Location: {meta.get('idc_location', '')}  |  Created By: {meta.get('created_by', '')}",
+            subtitle_fmt,
+        )
 
         for col_num, col_name in enumerate(df.columns):
             worksheet.write(data_startrow, col_num, col_name, header_fmt)
@@ -303,6 +331,7 @@ def build_quote_export_dataframe(items):
             "Firewall Cost (INR)": item.get("Firewall Cost (INR)", 0.0),
             "Public IPs": item.get("Public IPs", 0),
             "Quantity": item.get("Quantity", 1),
+            "Unit": item.get("Unit", ""),
             "vCPU": item.get("vCPU", ""),
             "RAM (GB)": item.get("RAM (GB)", ""),
             # ── Step 3: Network & Security ──
@@ -314,7 +343,7 @@ def build_quote_export_dataframe(items):
             # ── Step 3: Licenses ──
             "License Element": item.get("License Element", ""),
             "License Sub Type": item.get("License Sub Type", ""),
-            "License Qty": item.get("License Qty", 0),
+            "License Qty": item.get("Quantity", 0),
             "License Cost (INR)": item.get("License Cost (INR)", 0.0),
             # ── Step 3: Backup Storage ──
             "Backup Storage Model": item.get("Backup Storage Model", ""),
@@ -325,11 +354,11 @@ def build_quote_export_dataframe(items):
             "Network Element Cost (INR)": item.get("Network Element Cost (INR)", 0.0),
             # ── Step 3: Management ──
             "Management Type": item.get("Management Type", ""),
-            "Management Qty": item.get("Management Qty", 0),
+            "Management Qty": item.get("Quantity", 0),
             "Management Cost (INR)": item.get("Management Cost (INR)", 0.0),
             # ── Step 3: Miscellaneous ──
             "Misc Element": item.get("Misc Element", ""),
-            "Misc Qty": item.get("Misc Qty", 0),
+            "Misc Qty": item.get("Quantity", 0),
             "Misc Cost (INR)": item.get("Misc Cost (INR)", 0.0),
             # ── Totals ──
             "Additional Services Total (INR)": item.get("Additional Services Total (INR)", 0.0),
@@ -408,7 +437,7 @@ def export_quote_to_csv(df, grand_total=None):
     # Software & Licenses
     lines.append("Software and Licenses,,,,,,,,,,")
     lines.append("Element,Sub Type,Description,Unit,Qty,Remark,Cost (INR)")
-    lic_rows = df[df["License Element"].notna() & (df["License Element"] != "")]
+    lic_rows = df[df["License Sub Type"].notna() & (df["License Sub Type"] != "") & (df["License Sub Type"] != "None")]
     if not lic_rows.empty:
         for _, row in lic_rows.iterrows():
             lines.append(
@@ -483,8 +512,9 @@ def export_quote_to_csv(df, grand_total=None):
     return "\n".join(lines).encode("utf-8")
 
 
-def export_quote_to_excel(df, quotation_id, grand_total):
+def export_quote_to_excel(df, quotation_id, grand_total, meta=None):
     """Export in BOQ format as Excel matching OUTPUT_FORMAT.xlsx structure"""
+    meta = meta or {}
     df = normalize_quote_dataframe(df)
     df = enforce_integer_columns(df)
     output = io.BytesIO()
@@ -560,13 +590,17 @@ def export_quote_to_excel(df, quotation_id, grand_total):
         worksheet.write(row, 0, f"Generated: {datetime.now().strftime('%d %B %Y, %H:%M')}", subtitle_fmt)
         row += 1
         worksheet.write(row, 0, "Account Manager", meta_label_fmt)
-        worksheet.write(row, 2, "BD", meta_label_fmt)
-        worksheet.write(row, 4, "Solution Architect", meta_label_fmt)
+        worksheet.write(row, 1, meta.get("account_manager", ""), meta_value_fmt)
+        worksheet.write(row, 3, "Solution Architect", meta_label_fmt)
+        worksheet.write(row, 4, meta.get("solution_architect", ""), meta_value_fmt)
         row += 1
-        worksheet.write(row, 0, "Service Model", meta_label_fmt)
-        worksheet.write(row, 1, "IPC", meta_value_fmt)
-        worksheet.write(row, 2, "Contract", meta_label_fmt)
-        worksheet.write(row, 4, "IDC Location", meta_label_fmt)
+        worksheet.write(row, 0, "Service Manager", meta_label_fmt)
+        worksheet.write(row, 1, meta.get("service_manager", ""), meta_value_fmt)
+        worksheet.write(row, 3, "IDC Location", meta_label_fmt)
+        worksheet.write(row, 4, meta.get("idc_location", ""), meta_value_fmt)
+        row += 1
+        worksheet.write(row, 0, "Created By", meta_label_fmt)
+        worksheet.write(row, 1, meta.get("created_by", ""), meta_value_fmt)
         row += 1
 
         def write_section_header(ws, r, title):
@@ -577,22 +611,31 @@ def export_quote_to_excel(df, quotation_id, grand_total):
             for c, h in enumerate(headers):
                 ws.write(r, c, h if h is not None else "", header_fmt)
             return r + 1
-        def write_data_row(ws, r, values, fmts=None):
+        def write_data_row(ws, r, values, fmts=None, currency_col=None):
             for c, v in enumerate(values):
-                # Use integer format for whole numbers (Qty, GB, vCPU, etc.)
-                if isinstance(v, (int, float)) and float(v).is_integer():
+                if fmts and c < len(fmts):
+                    fmt = fmts[c]
+                elif currency_col is not None and c == currency_col:
+                    fmt = number_fmt
+                elif isinstance(v, (int, float)) and float(v).is_integer():
+                    # Use integer format for whole numbers (Qty, GB, vCPU, etc.)
                     fmt = sno_fmt if c == 0 else workbook.add_format({
                         "border": 1, "num_format": "0"
                     })
                 else:
-                    fmt = fmts[c] if fmts and c < len(fmts) else (number_fmt if isinstance(v, (int, float)) else data_fmt)
+                    fmt = number_fmt if isinstance(v, (int, float)) else data_fmt
                 ws.write(r, c, v, fmt)
             return r + 1
         
-        def row_fmts(values):
+        def row_fmts(values, currency_col=None):
             fmts = [sno_fmt]
-            for v in values[1:]:
-                fmts.append(number_fmt if isinstance(v, (int, float)) else data_fmt)
+            for i, v in enumerate(values[1:], start=1):
+                if i == currency_col:
+                    fmts.append(number_fmt)
+                elif isinstance(v, (int, float)) and float(v).is_integer():
+                    fmts.append(workbook.add_format({"border": 1, "num_format": "0"}))
+                else:
+                    fmts.append(number_fmt if isinstance(v, (int, float)) else data_fmt)
             return fmts
 
         
@@ -611,12 +654,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     r2.get("Network Sub Type", ""),
                     "", "", "",
                     r2.get("Network Sub Type", ""),
-                    r2.get("Bandwidth (Mbps)", 0),
                     "Mbps",
+                    r2.get("Bandwidth (Mbps)", 0),
                     "",
                     r2.get("Network Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, currency_col=10)
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -638,7 +681,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     r2.get("Firewall Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, currency_col=10)
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -666,30 +709,29 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 r2.get("Storage Type", ""),
                 r2.get("Line Total (INR)", 0),
             ]
-            row = write_data_row(worksheet, row, vals)
+            row = write_data_row(worksheet, row, vals, currency_col=10)
         row += 1
 
         
         # SECTION 3: Software & Licenses
         
         row = write_section_header(worksheet, row, "Software and Licenses")
-        lic_headers = ["Element", "Sub Type", "Description", None, None, None, None,
+        lic_headers = ["License Type", "Description", None, None, None, None, None,
                        "Unit", "Qty", "Remark", "Cost (INR)"]
         row = write_col_headers(worksheet, row, lic_headers)
-        lic_rows = df[df["License Element"].notna() & (df["License Element"] != "")]
+        lic_rows = df[df["License Sub Type"].notna() & (df["License Sub Type"] != "") & (df["License Sub Type"] != "None")]
         if not lic_rows.empty:
             for _, r2 in lic_rows.iterrows():
                 vals = [
-                    r2.get("License Element", ""),
                     r2.get("License Sub Type", ""),
                     "",
-                    "", "", "", "",
+                    "", "", "", "", "",
                     "# of Licenses",
                     _export_int_if_whole(r2.get("License Qty", 0)),
                     "",
                     r2.get("License Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals)
+                row = write_data_row(worksheet, row, vals, currency_col=10)
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -716,7 +758,7 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                     "",
                     r2.get("Backup Storage Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals, currency_col=10))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -734,10 +776,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 vals = [
                     r2.get("Network Element Type", ""),
                     "", "", "", "", "", "",
-                    "", 1, "",
+                    r2.get("Unit", ""),
+                    _export_int_if_whole(r2.get("Quantity", 1)),
+                    "",
                     r2.get("Network Element Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals, currency_col=10))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -755,12 +799,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 vals = [
                     r2.get("Management Type", ""),
                     "", "", "", "", "", "",
-                    "",
+                    r2.get("Unit", ""),
                     _export_int_if_whole(r2.get("Management Qty", 0)),
                     "",
                     r2.get("Management Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals, currency_col=10))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1
@@ -778,12 +822,12 @@ def export_quote_to_excel(df, quotation_id, grand_total):
                 vals = [
                     r2.get("Misc Element", ""),
                     "", "", "", "", "", "",
-                    "",
+                    r2.get("Unit", ""),
                     _export_int_if_whole(r2.get("Misc Qty", 0)),
                     "",
                     r2.get("Misc Cost (INR)", 0),
                 ]
-                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals))
+                row = write_data_row(worksheet, row, vals, fmts=row_fmts(vals, currency_col=10))
         else:
             row = write_data_row(worksheet, row, [""] * 11)
         row += 1

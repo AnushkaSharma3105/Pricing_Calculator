@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 import sys
 import importlib
+import streamlit.components.v1 as components
 
 # Force reload local modules to prevent Streamlit caching issues
 for module_name in ["utils", "pricing_engine", "data_loader", "auth", "history_db", "login_page", "register_page", "profile_page", "history_page", "admin_page"]:
@@ -25,8 +26,20 @@ from utils import (
     format_inr, generate_quotation_id, get_logo_base64,
     build_summary_dataframe, export_to_csv, export_to_excel,
     build_quote_export_dataframe, export_quote_to_csv, export_quote_to_excel,
-    enforce_integer_columns, to_whole_number
+    enforce_integer_columns, enforce_currency_columns, to_whole_number
 )
+
+
+def _build_export_meta():
+    """Collects the manager/location fields + logged-in user for Excel export headers."""
+    return {
+        "account_manager": st.session_state.get("account_manager", ""),
+        "solution_architect": st.session_state.get("solution_architect", ""),
+        "service_manager": st.session_state.get("service_manager", ""),
+        "idc_location": st.session_state.get("idc_location", ""),
+        "created_by": (st.session_state.user or {}).get("full_name", "")
+                      or (st.session_state.user or {}).get("email", ""),
+    }
 from auth import init_db
 from history_db import init_quote_history_db, save_quotation_history
 from login_page import show_login
@@ -162,6 +175,8 @@ for key, default in [
         ("logged_in", False), ("user", None), ("page", "login"),
         ("result", None), ("quotation_id", None), ("last_config", {}),
         ("quote_items", []), ("customer_name", ""), ("company_name", ""),
+        ("account_manager", ""), ("solution_architect", ""),
+        ("service_manager", ""), ("idc_location", ""),
         ("history_saved_for_qid", None), ("history_view_id", None),
         ("delete_confirm_id", None), ("preview_result", None), ("show_preview", False),
         ("added_signatures", {})
@@ -737,24 +752,53 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-with st.container():
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    customer_col, company_col = st.columns(2)
-    with customer_col:
-        st.session_state.customer_name = st.text_input(
-            "Customer Name",
-            value=st.session_state.customer_name,
-            placeholder="Enter customer name",
-            key="customer_name_input"
-        )
-    with company_col:
-        st.session_state.company_name = st.text_input(
-            "Company Name",
-            value=st.session_state.company_name,
-            placeholder="Enter company name",
-            key="company_name_input"
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+customer_col, company_col = st.columns(2)
+with customer_col:
+    st.session_state.customer_name = st.text_input(
+        "Customer Name",
+        value=st.session_state.customer_name,
+        placeholder="Enter customer name",
+        key="customer_name_input"
+    )
+with company_col:
+    st.session_state.company_name = st.text_input(
+        "Company Name",
+        value=st.session_state.company_name,
+        placeholder="Enter company name",
+        key="company_name_input"
+    )
+
+am_col, sa_col = st.columns(2)
+with am_col:
+    st.session_state.account_manager = st.text_input(
+        "Account Manager",
+        value=st.session_state.account_manager,
+        placeholder="Enter account manager name",
+        key="account_manager_input"
+    )
+with sa_col:
+    st.session_state.solution_architect = st.text_input(
+        "Solution Architect",
+        value=st.session_state.solution_architect,
+        placeholder="Enter solution architect name",
+        key="solution_architect_input"
+    )
+
+sm_col, idc_col = st.columns(2)
+with sm_col:
+    st.session_state.service_manager = st.text_input(
+        "Service Manager",
+        value=st.session_state.service_manager,
+        placeholder="Enter service manager name",
+        key="service_manager_input"
+    )
+with idc_col:
+    st.session_state.idc_location = st.text_input(
+        "IDC Location",
+        value=st.session_state.idc_location,
+        placeholder="Enter IDC location",
+        key="idc_location_input"
+    )
 
 
 # STEP 1 — PRODUCT SELECTION
@@ -1159,12 +1203,7 @@ with st.expander("**🔐 Software & Licenses**", expanded=False):
 
     with lic_col1:
         st.markdown("**License Type**")
-        lic_element = st.selectbox(
-            "Element (License)",
-            ["None", "Windows Server", "Linux", "MS SQL", "MySQL",
-             "PostgreSQL", "Commvault Backup License"],
-            key="lic_element"
-        )
+        lic_element = "None"
         lic_subtype = st.selectbox(
             "License Type",
             list(LICENSE_PRICES.keys()),
@@ -1586,15 +1625,15 @@ if calculate_clicked:
                     "Operating System": "", "Pricing Tier": "",
                     "Storage Type": "", "Storage (GB)": 0,
                     "Backup Type": "", "Backup (GB)": 0,
-                    "Public IPs": 0, "Quantity": "", "vCPU": "", "RAM (GB)": "",
+                    "Public IPs": 0, "Quantity": "", "Unit": "", "vCPU": "", "RAM (GB)": "",
                     "Network Element": "", "Network Feature": "", "Network Sub Type": "",
                     "Bandwidth (Mbps)": 0, "Network Cost (INR)": 0.0,
                     "Firewall Type": "", "Firewall Bandwidth (Mbps)": 0, "Firewall Cost (INR)": 0.0,
-                    "License Element": "", "License Sub Type": "", "License Qty": 0, "License Cost (INR)": 0.0,
+                    "License Element": "", "License Sub Type": "", "License Cost (INR)": 0.0,
                     "Backup Storage Model": "", "Backup Storage (GB)": 0, "Backup Storage Cost (INR)": 0.0,
                     "Network Element Type": "", "Network Element Cost (INR)": 0.0,
-                    "Management Type": "", "Management Qty": 0, "Management Cost (INR)": 0.0,
-                    "Misc Element": "", "Misc Qty": 0, "Misc Cost (INR)": 0.0,
+                    "Management Type": "", "Management Cost (INR)": 0.0,
+                    "Misc Element": "", "Misc Cost (INR)": 0.0,
                     "Line Total (INR)": 0.0,
                 }
 
@@ -1639,6 +1678,7 @@ if calculate_clicked:
                         "Network Feature": ns_feature if ns_feature != "None" else "",
                         "Network Sub Type": ns_subtype if ns_subtype != "None" else "",
                         "Bandwidth (Mbps)": ns_bandwidth_mbps,
+                        "Quantity": ns_qty,
                         "Network Cost (INR)": round(ns_cost, 2),
                         "Line Total (INR)": round(ns_cost, 2),
                     })
@@ -1671,7 +1711,7 @@ if calculate_clicked:
                         "Category": "License", "_bucket": "License", "_signature": lic_signature,
                         "License Element": lic_element if lic_element != "None" else "",
                         "License Sub Type": lic_subtype,
-                        "License Qty": lic_qty,
+                        "Quantity": lic_qty,
                         "License Cost (INR)": round(lic_cost, 2),
                         "Line Total (INR)": round(lic_cost, 2),
                     })
@@ -1686,6 +1726,7 @@ if calculate_clicked:
                     row = _blank_row()
                     row.update({
                         "Category": "Backup Storage", "_bucket": "Backup Storage", "_signature": bk_signature,
+                        "Element": bk_element if bk_element != "None" else "",
                         "Backup Storage Model": bk_model,
                         "Backup Storage (GB)": bk_qty,
                         "Backup Storage Cost (INR)": round(bk_cost, 2),
@@ -1703,6 +1744,8 @@ if calculate_clicked:
                     row.update({
                         "Category": "Network Element", "_bucket": "Network Element", "_signature": ne_signature,
                         "Network Element Type": ne_element,
+                        "Quantity": ne_qty,
+                        "Unit": ne_unit if ne_unit != "None" else "",
                         "Network Element Cost (INR)": round(ne_cost, 2),
                         "Line Total (INR)": round(ne_cost, 2),
                     })
@@ -1718,7 +1761,8 @@ if calculate_clicked:
                     row.update({
                         "Category": "Management", "_bucket": "Management", "_signature": mg_signature,
                         "Management Type": mg_element,
-                        "Management Qty": mg_qty,
+                        "Quantity": mg_qty,
+                        "Unit": mg_unit,
                         "Management Cost (INR)": round(mg_cost, 2),
                         "Line Total (INR)": round(mg_cost, 2),
                     })
@@ -1734,7 +1778,8 @@ if calculate_clicked:
                     row.update({
                         "Category": "Miscellaneous", "_bucket": "Misc", "_signature": mi_signature,
                         "Misc Element": mi_element,
-                        "Misc Qty": mi_qty,
+                        "Quantity": mi_qty,
+                        "Unit": mi_unit if mi_unit != "None" else "",
                         "Misc Cost (INR)": round(mi_cost, 2),
                         "Line Total (INR)": round(mi_cost, 2),
                     })
@@ -1803,6 +1848,7 @@ if st.session_state.quote_items:
     # upcast an integer column to float64 (e.g. "50.0"), so we re-normalize
     # here. Price/cost/total columns are untouched.
     quote_df = enforce_integer_columns(quote_df)
+    quote_df = enforce_currency_columns(quote_df)
     display_cols = [
         "S.No.",
         "Category",
@@ -1812,11 +1858,11 @@ if st.session_state.quote_items:
         "Public IPs", "Quantity", "vCPU", "RAM (GB)",
         "Network Element", "Network Feature", "Network Sub Type", "Bandwidth (Mbps)", "Network Cost (INR)",
         "Firewall Type", "Firewall Bandwidth (Mbps)", "Firewall Cost (INR)",
-        "License Element", "License Sub Type", "License Qty", "License Cost (INR)",
+        "License Element", "License Sub Type", "License Cost (INR)",
         "Backup Storage Model", "Backup Storage (GB)", "Backup Storage Cost (INR)",
         "Network Element Type", "Network Element Cost (INR)",
-        "Management Type", "Management Qty", "Management Cost (INR)",
-        "Misc Element", "Misc Qty", "Misc Cost (INR)",
+        "Management Type", "Management Cost (INR)",
+        "Misc Element", "Misc Cost (INR)",
         "Line Total (INR)"
     ]
     display_cols = [c for c in display_cols if c in quote_df.columns]
@@ -1832,7 +1878,12 @@ if st.session_state.quote_items:
 
     
     display_cols = [c for c in display_cols if c in ALWAYS_SHOW_COLS or _col_has_data(c)]
-    st.dataframe(quote_df[display_cols], use_container_width=True, hide_index=True)
+    inr_col_config = {
+        c: st.column_config.NumberColumn(c, format="%.2f")
+        for c in display_cols if "(INR)" in c
+    }
+    st.dataframe(quote_df[display_cols], use_container_width=True, hide_index=True,
+                 column_config=inr_col_config)
 
     estimated_upfront_cost = 0.0
     estimated_monthly_cost = grand_total
@@ -1860,39 +1911,49 @@ if st.session_state.quote_items:
         """,
         unsafe_allow_html=True,
     )
-    # Highlighted style for the edit expander
-    st.markdown("""
-    <style>
-    /* Traverses Streamlit's wrapper divs to target the expander immediately following the marker */
-    div[data-testid="stVerticalBlock"] > div:has(.edit-quote-marker) + div div[data-testid="stExpander"],
-    div[data-testid="element-container"]:has(.edit-quote-marker) + div[data-testid="element-container"] div[data-testid="stExpander"],
-    .element-container:has(.edit-quote-marker) + .element-container div[data-testid="stExpander"] {
-        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%) !important;
-        border: 3px solid #2563EB !important;
-        border-radius: 12px !important;
-        padding: 6px 14px !important;
-        margin-top: 12px !important;
-        margin-bottom: 12px !important;
-        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3) !important;
+    # Colors the two expanders by matching their VISIBLE TEXT, not guessed DOM structure.
+    # This is immune to how Streamlit nests its wrapper divs.
+    components.html("""
+    <script>
+    function colorQuoteExpanders() {
+        const doc = window.parent.document;
+        const expanders = doc.querySelectorAll('[data-testid="stExpander"]');
+        expanders.forEach(function(exp) {
+            const summary = exp.querySelector('summary');
+            if (!summary) return;
+            const text = summary.innerText || summary.textContent || '';
+
+            if (text.indexOf('Edit above quote') !== -1) {
+                exp.style.setProperty('background', '#FEF9E7', 'important');
+                exp.style.setProperty('border', '1.5px solid #F0C93B', 'important');
+                exp.style.setProperty('border-radius', '12px', 'important');
+                exp.style.setProperty('box-shadow', '0 2px 10px rgba(0,0,0,0.05)', 'important');
+                const span = summary.querySelector('span');
+                if (span) {
+                    span.style.setProperty('color', '#8A6D00', 'important');
+                    span.style.setProperty('font-weight', '700', 'important');
+                }
+            }
+
+            if (text.indexOf('Remove item from quote') !== -1) {
+                exp.style.setProperty('background', '#FDEDEC', 'important');
+                exp.style.setProperty('border', '1.5px solid #E8968E', 'important');
+                exp.style.setProperty('border-radius', '12px', 'important');
+                exp.style.setProperty('box-shadow', '0 2px 10px rgba(0,0,0,0.05)', 'important');
+                const span = summary.querySelector('span');
+                if (span) {
+                    span.style.setProperty('color', '#A13A31', 'important');
+                    span.style.setProperty('font-weight', '700', 'important');
+                }
+            }
+        });
     }
-    
-    /* Highlight the header/summary span text */
-    div[data-testid="stVerticalBlock"] > div:has(.edit-quote-marker) + div div[data-testid="stExpander"] summary span,
-    div[data-testid="element-container"]:has(.edit-quote-marker) + div[data-testid="element-container"] div[data-testid="stExpander"] summary span,
-    .element-container:has(.edit-quote-marker) + .element-container div[data-testid="stExpander"] summary span {
-        font-weight: 800 !important;
-        color: #1B3A6B !important;
-        font-size: 1.15em !important;
-    }
-    
-    /* Keep internal details content clean */
-    div[data-testid="stVerticalBlock"] > div:has(.edit-quote-marker) + div div[data-testid="stExpander"] details,
-    div[data-testid="element-container"]:has(.edit-quote-marker) + div[data-testid="element-container"] div[data-testid="stExpander"] details {
-        border: none !important;
-    }
-    </style>
-    <div class="edit-quote-marker"></div>
-    """, unsafe_allow_html=True)
+    colorQuoteExpanders();
+    setTimeout(colorQuoteExpanders, 300);
+    setTimeout(colorQuoteExpanders, 800);
+    setTimeout(colorQuoteExpanders, 1500);
+    </script>
+    """, height=0)
 
     with st.expander("✏️ Edit above quote (fix a wrong quantity / Mbps / GB)"):
         edit_options = [
@@ -2052,7 +2113,7 @@ if st.session_state.quote_items:
                 ed_ns_unit = st.selectbox("Unit", unit_opts, key=f"ed_ns_unit_{edit_index}")
                 ed_ns_qty = st.number_input("Quantity",
                     min_value=0, max_value=100,
-                    value=1, step=1, key=f"ed_ns_qty_{edit_index}"
+                    value=int(edit_item.get("Quantity", 1)), step=1, key=f"ed_ns_qty_{edit_index}"
                 )
             new_ns_cost = INTERNET_BANDWIDTH_PRICE_PER_MBPS * ed_ns_bw * ed_ns_qty if ed_ns_bw > 0 and ed_ns_qty > 0 else 0
             st.caption(f"New estimated cost: {format_inr(new_ns_cost)} / month")
@@ -2063,6 +2124,7 @@ if st.session_state.quote_items:
                     "Network Feature": ed_ns_feature,
                     "Network Sub Type": ed_ns_subtype,
                     "Bandwidth (Mbps)": ed_ns_bw,
+                    "Quantity": ed_ns_qty,
                     "Network Cost (INR)": round(new_ns_cost, 2),
                     "Line Total (INR)": round(new_ns_cost, 2),
                 })
@@ -2117,7 +2179,7 @@ if st.session_state.quote_items:
                 ed_lic_unit = st.selectbox("Unit", lic_unit_opts, key=f"ed_lic_unit_{edit_index}")
                 ed_lic_qty = st.number_input("Quantity",
                     min_value=0, max_value=100000,
-                    value=int(edit_item.get("License Qty", 0)),
+                    value=int(edit_item.get("Quantity", 0)),
                     step=1, key=f"ed_lic_qty_{edit_index}"
                 )
             new_lic_cost = round(LICENSE_PRICES.get(ed_lic_sub, 0) * ed_lic_qty, 2) if ed_lic_sub != "None" else 0
@@ -2127,7 +2189,7 @@ if st.session_state.quote_items:
                 edit_item.update({
                     "License Element": ed_lic_el,
                     "License Sub Type": ed_lic_sub,
-                    "License Qty": ed_lic_qty,
+                    "Quantity": ed_lic_qty,
                     "License Cost (INR)": new_lic_cost,
                     "Line Total (INR)": new_lic_cost,
                 })
@@ -2185,7 +2247,7 @@ if st.session_state.quote_items:
                 ed_mg_unit = st.selectbox("Unit", mg_unit_opts, key=f"ed_mg_unit_{edit_index}")
                 ed_mg_qty = st.number_input("Quantity",
                     min_value=0, max_value=500,
-                    value=int(edit_item.get("Management Qty", 0)),
+                    value=int(edit_item.get("Quantity", 0)),
                     step=1, key=f"ed_mg_qty_{edit_index}"
                 )
             mg_price_map = {"OS-Management": 500, "DB Management": 6500, "Firewall Management": 2000}
@@ -2195,7 +2257,7 @@ if st.session_state.quote_items:
             if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
                 edit_item.update({
                     "Management Type": ed_mg_el,
-                    "Management Qty": ed_mg_qty,
+                    "Quantity": ed_mg_qty,
                     "Management Cost (INR)": new_mg_cost,
                     "Line Total (INR)": new_mg_cost,
                 })
@@ -2217,13 +2279,13 @@ if st.session_state.quote_items:
                 ed_mi_unit = st.selectbox("Unit", mi_unit_opts, key=f"ed_mi_unit_{edit_index}")
                 ed_mi_qty = st.number_input("Quantity",
                     min_value=0, max_value=10000,
-                    value=int(edit_item.get("Misc Qty", 0)),
+                    value=int(edit_item.get("Quantity", 0)),
                     step=1, key=f"ed_mi_qty_{edit_index}"
                 )
                 ed_mi_price = st.number_input("Price per Unit (INR)",
                     min_value=0.0,
-                    value=float(edit_item.get("Misc Cost (INR)", 0) / edit_item.get("Misc Qty", 1))
-                    if edit_item.get("Misc Qty", 0) > 0 else 0.0,
+                    value=float(edit_item.get("Misc Cost (INR)", 0) / edit_item.get("Quantity", 1))
+                    if edit_item.get("Quantity", 0) > 0 else 0.0,
                     step=100.0, key=f"ed_mi_price_{edit_index}"
                 )
             new_mi_cost = round(ed_mi_price * ed_mi_qty, 2)
@@ -2232,7 +2294,7 @@ if st.session_state.quote_items:
             if st.button("Update this item", type="secondary", key=f"ed_update_{edit_index}"):
                 edit_item.update({
                     "Misc Element": ed_mi_el,
-                    "Misc Qty": ed_mi_qty,
+                    "Quantity": ed_mi_qty,
                     "Misc Cost (INR)": new_mi_cost,
                     "Line Total (INR)": new_mi_cost,
                 })
@@ -2272,7 +2334,7 @@ if st.session_state.quote_items:
             st.success("✅ Item updated successfully!")
             st.rerun()
 
-    with st.expander("Remove item from quote"):
+    with st.expander("Remove item from quote🗑️"):
         remove_options = [
             f"{index + 1}. {item.get('Category', 'Item')} — {format_inr(item.get('Line Total (INR)', 0))}"
             for index, item in enumerate(items)
@@ -2307,7 +2369,7 @@ if st.session_state.quote_items:
 
     quote_export_df = build_quote_export_dataframe(items)
     csv_data = export_quote_to_csv(quote_export_df, grand_total)
-    excel_data = export_quote_to_excel(quote_export_df, qid, grand_total)
+    excel_data = export_quote_to_excel(quote_export_df, qid, grand_total, meta=_build_export_meta())
 
     dl_col1, dl_col2 = st.columns(2)
 
@@ -2409,7 +2471,7 @@ elif st.session_state.result:
     with dl_col2:
         excel_data = export_to_excel(
             summary_df, saved["product"],
-            saved["flavour"], qid
+            saved["flavour"], qid, meta=_build_export_meta()
         )
         st.download_button(
             label="📊 Download as Excel",
